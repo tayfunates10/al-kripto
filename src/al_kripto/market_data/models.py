@@ -128,13 +128,11 @@ class OrderBookSnapshot:
         if not self.bids or not self.asks:
             raise MarketDataValidationError("Order book must contain both bids and asks.")
         if any(
-            left.price <= right.price
-            for left, right in zip(self.bids, self.bids[1:], strict=False)
+            left.price <= right.price for left, right in zip(self.bids, self.bids[1:], strict=False)
         ):
             raise MarketDataValidationError("Bid levels must be strictly descending by price.")
         if any(
-            left.price >= right.price
-            for left, right in zip(self.asks, self.asks[1:], strict=False)
+            left.price >= right.price for left, right in zip(self.asks, self.asks[1:], strict=False)
         ):
             raise MarketDataValidationError("Ask levels must be strictly ascending by price.")
         if self.bids[0].price >= self.asks[0].price:

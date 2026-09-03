@@ -4,7 +4,7 @@
 stratejiler geliştirmek için tasarlanan güvenlik öncelikli bir araştırma ve işlem
 otomasyonu projesidir.
 
-> Güncel tamamlanma: **%12** — Aşama 0 ve Aşama 1 tamamlandı.
+> Güncel tamamlanma: **%24** — Aşama 0, Aşama 1 ve Aşama 2 tamamlandı.
 
 ## İlk ürün kapsamı
 
@@ -31,7 +31,7 @@ olarak ele alınır. Kaynak ve kabul kayıtları
 |---|---:|---|---|
 | 0. Kapsam ve kanıt kaydı | %5 | ✅ Tamamlandı | Araştırma iddiaları, kabul ölçütleri |
 | 1. Repo ve güvenlik temeli | %7 | ✅ Tamamlandı | Python iskeleti, CI, güvenli ayarlar |
-| 2. Veri altyapısı | %12 | ⏳ Bekliyor | Mum, işlem ve order-book adaptörleri |
+| 2. Veri altyapısı | %12 | ✅ Tamamlandı | Doğrulamalı mum, işlem ve order-book adaptörleri |
 | 3. Backtest motoru | %15 | ⏳ Bekliyor | Olay tabanlı, maliyet ve gecikme duyarlı test |
 | 4. Temel strateji | %10 | ⏳ Bekliyor | VWAP, trend ve oynaklık rejimi |
 | 5. On-chain rejim motoru | %8 | ⏳ Bekliyor | MVRV, SOPR, Puell ve NVT filtreleri |
@@ -41,7 +41,21 @@ olarak ele alınır. Kaynak ve kabul kayıtları
 | 9. ML araştırma katmanı | %5 | ⏳ Bekliyor | OOS doğrulamalı deneyler |
 | 10. İzleme ve panel | %5 | ⏳ Bekliyor | PnL, drawdown, veri ve sistem alarmları |
 | 11. Paper-to-live kapısı | %5 | ⏳ Bekliyor | Stres testi ve manuel canlı onayı |
-| **Toplam** | **%100** | **%12 tamamlandı** | |
+| **Toplam** | **%100** | **%24 tamamlandı** | |
+
+## Aşama 2 veri altyapısı
+
+- `Candle`, `Trade`, `OrderBookLevel` ve `OrderBookSnapshot` modelleri dış veriyi
+  strateji katmanına geçmeden doğrular.
+- Fiyat ve miktar hesaplarında ikili kayan nokta hatalarını azaltmak için `Decimal`
+  kullanılır.
+- Mum ve işlem serilerinde kronolojik sıra; order-book'ta fiyat sırası ve
+  crossed/locked book durumu kontrol edilir.
+- `MarketDataSource` protokolü veri sağlayıcısını sonraki backtest/strateji
+  katmanlarından ayırır.
+- `BinanceSpotMarketData`, Binance Spot public market-data uçlarını yalnızca
+  okuma amaçlı ve API anahtarı gerektirmeden kullanır.
+- Ağ transport'u enjekte edilebilir; birim testleri gerçek ağa çıkmadan çalışır.
 
 ## Güvenlik modeli
 

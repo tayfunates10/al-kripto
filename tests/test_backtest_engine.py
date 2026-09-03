@@ -26,7 +26,13 @@ class SequenceStrategy:
         return self._targets[index]
 
 
-def make_candle(index: int, open_price: str, close_price: str, *, symbol: str = "BTCUSDT") -> Candle:
+def make_candle(
+    index: int,
+    open_price: str,
+    close_price: str,
+    *,
+    symbol: str = "BTCUSDT",
+) -> Candle:
     opened = Decimal(open_price)
     closed = Decimal(close_price)
     high = max(opened, closed) + Decimal("1")

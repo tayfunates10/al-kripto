@@ -62,11 +62,7 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
 
     def test_parses_aggregate_trades(self) -> None:
         transport = FakeTransport(
-            {
-                "/api/v3/aggTrades": [
-                    {"a": 10, "p": "100.5", "q": "0.25", "T": 1234, "m": True}
-                ]
-            }
+            {"/api/v3/aggTrades": [{"a": 10, "p": "100.5", "q": "0.25", "T": 1234, "m": True}]}
         )
         source = BinanceSpotMarketData(transport=transport)
 

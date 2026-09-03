@@ -107,9 +107,7 @@ class BacktestEngineTests(unittest.TestCase):
             make_candle(1, "100", "100"),
             make_candle(2, "100", "80"),
         )
-        strategy = SequenceStrategy(
-            (TargetPosition.LONG, TargetPosition.LONG, TargetPosition.LONG)
-        )
+        strategy = SequenceStrategy((TargetPosition.LONG, TargetPosition.LONG, TargetPosition.LONG))
         result = BacktestEngine(
             BacktestConfig(
                 initial_cash=Decimal("1000"),

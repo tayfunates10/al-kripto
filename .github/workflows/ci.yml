@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -33,7 +34,27 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Ruff lint
-        run: ruff check .
+        id: ruff
+        continue-on-error: true
+        run: ruff check . 2>&1 | tee ruff.log
+
+      - name: Report Ruff lint failure
+        if: github.event_name == 'pull_request' && steps.ruff.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "### Ruff CI tanı çıktısı"
+            echo
+            echo '```text'
+            cat ruff.log
+            echo '```'
+          } > ruff-comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file ruff-comment.md
+
+      - name: Stop after Ruff lint failure
+        if: steps.ruff.outcome == 'failure'
+        run: exit 1
 
       - name: Ruff format
         run: ruff format --check .

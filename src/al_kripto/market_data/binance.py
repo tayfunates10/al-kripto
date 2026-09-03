@@ -6,6 +6,7 @@ import json
 import time
 from collections.abc import Callable, Mapping
 from decimal import Decimal, InvalidOperation
+from itertools import pairwise
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -268,7 +269,5 @@ def _ensure_chronological[T](
     key: Callable[[T], int],
     label: str,
 ) -> None:
-    if any(
-        key(left) > key(right) for left, right in zip(items, items[1:], strict=False)
-    ):
+    if any(key(left) > key(right) for left, right in pairwise(items)):
         raise MarketDataPayloadError(f"{label} must be chronological.")

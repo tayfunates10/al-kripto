@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 
 _BPS_DENOMINATOR = Decimal("10000")
 _ZERO = Decimal("0")
@@ -15,14 +15,14 @@ class BacktestValidationError(ValueError):
     """Raised when a backtest input or strategy output violates invariants."""
 
 
-class TargetPosition(str, Enum):
+class TargetPosition(StrEnum):
     """Supported MVP target positions."""
 
     FLAT = "flat"
     LONG = "long"
 
 
-class Side(str, Enum):
+class Side(StrEnum):
     """Execution side for a simulated fill."""
 
     BUY = "buy"

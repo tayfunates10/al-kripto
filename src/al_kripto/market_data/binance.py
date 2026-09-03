@@ -164,7 +164,7 @@ class BinanceSpotMarketData:
             return self._transport(url, self._timeout_seconds)
         except MarketDataTransportError:
             raise
-        except (OSError, TimeoutError, ValueError) as error:
+        except (OSError, ValueError) as error:
             raise MarketDataTransportError(f"Market-data transport failed: {error}") from error
 
 
@@ -268,5 +268,7 @@ def _ensure_chronological[T](
     key: Callable[[T], int],
     label: str,
 ) -> None:
-    if any(key(left) > key(right) for left, right in zip(items, items[1:])):
+    if any(
+        key(left) > key(right) for left, right in zip(items, items[1:], strict=False)
+    ):
         raise MarketDataPayloadError(f"{label} must be chronological.")

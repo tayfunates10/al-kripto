@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -34,51 +33,10 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Ruff lint
-        id: ruff
-        continue-on-error: true
-        run: ruff check . > ruff.log 2>&1
-
-      - name: Report Ruff lint failure
-        if: github.event_name == 'pull_request' && steps.ruff.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          {
-            echo "### Ruff CI tanı çıktısı"
-            echo
-            echo '```text'
-            cat ruff.log
-            echo '```'
-          } > ruff-comment.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file ruff-comment.md
-
-      - name: Stop after Ruff lint failure
-        if: steps.ruff.outcome == 'failure'
-        run: exit 1
+        run: ruff check .
 
       - name: Ruff format
-        id: ruff_format
-        continue-on-error: true
         run: ruff format --check .
-
-      - name: Report Ruff format failure
-        if: github.event_name == 'pull_request' && steps.ruff_format.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ruff format --diff . > ruff-format.diff || true
-          {
-            echo "### Ruff format tanı çıktısı"
-            echo
-            echo '```diff'
-            cat ruff-format.diff
-            echo '```'
-          } > ruff-format-comment.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file ruff-format-comment.md
-
-      - name: Stop after Ruff format failure
-        if: steps.ruff_format.outcome == 'failure'
-        run: exit 1
 
       - name: Type check
         run: mypy src tests

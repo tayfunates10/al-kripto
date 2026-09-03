@@ -146,7 +146,6 @@ class BacktestEngine:
         if any(candle.symbol != symbol for candle in series):
             raise BacktestValidationError("All candles must use the same symbol.")
         if any(
-            current.open_time_ms <= previous.close_time_ms
-            for previous, current in pairwise(series)
+            current.open_time_ms <= previous.close_time_ms for previous, current in pairwise(series)
         ):
             raise BacktestValidationError("Candles must be chronological and non-overlapping.")

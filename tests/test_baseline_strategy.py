@@ -71,15 +71,13 @@ class BaselineStrategyTests(unittest.TestCase):
 
     def test_enters_long_when_all_filters_agree(self) -> None:
         history = tuple(
-            candle(index, close)
-            for index, close in enumerate(("100", "100", "101", "103", "106"))
+            candle(index, close) for index, close in enumerate(("100", "100", "101", "103", "106"))
         )
         self.assertEqual(self.strategy.target_position(history), TargetPosition.LONG)
 
     def test_stays_flat_when_trend_filter_fails(self) -> None:
         history = tuple(
-            candle(index, close)
-            for index, close in enumerate(("106", "105", "103", "101", "100"))
+            candle(index, close) for index, close in enumerate(("106", "105", "103", "101", "100"))
         )
         self.assertEqual(self.strategy.target_position(history), TargetPosition.FLAT)
 
@@ -94,8 +92,7 @@ class BaselineStrategyTests(unittest.TestCase):
             )
         )
         history = tuple(
-            candle(index, close)
-            for index, close in enumerate(("100", "100", "101", "103", "106"))
+            candle(index, close) for index, close in enumerate(("100", "100", "101", "103", "106"))
         )
         self.assertEqual(strategy.target_position(history), TargetPosition.FLAT)
 

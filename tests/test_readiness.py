@@ -66,9 +66,7 @@ class ReadinessAssessmentTests(unittest.TestCase):
     def test_each_required_check_is_fail_closed_when_missing(self) -> None:
         for omitted in REQUIRED_READINESS_CHECKS:
             with self.subTest(omitted=omitted):
-                evidence = tuple(
-                    item for item in _passing_evidence() if item.check is not omitted
-                )
+                evidence = tuple(item for item in _passing_evidence() if item.check is not omitted)
                 assessment = assess_production_readiness(evidence)
                 self.assertEqual(assessment.status, ReadinessStatus.NOT_READY)
                 self.assertIn(omitted, assessment.missing_checks)

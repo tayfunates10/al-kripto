@@ -101,7 +101,9 @@ class PositionRequest:
         _require_positive(self.requested_notional, "requested_notional")
         _require_positive(self.risk_at_stop, "risk_at_stop")
         if self.risk_at_stop > self.requested_notional:
-            raise RiskValidationError("risk_at_stop cannot exceed requested_notional for spot long.")
+            raise RiskValidationError(
+                "risk_at_stop cannot exceed requested_notional for spot long."
+            )
 
 
 @dataclass(frozen=True, slots=True)

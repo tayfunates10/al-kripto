@@ -23,7 +23,12 @@ class TestExecutionEngine:
     ) -> ExecutionOrder:
         existing = self._orders.get(client_order_id)
         if existing is not None:
-            if existing.symbol != symbol or existing.side is not side or existing.quantity != quantity:
+            same_order = (
+                existing.symbol == symbol
+                and existing.side is side
+                and existing.quantity == quantity
+            )
+            if not same_order:
                 raise ValueError("client_order_id already exists with different order parameters")
             return existing
 
@@ -36,7 +41,13 @@ class TestExecutionEngine:
         self._orders[client_order_id] = order
         return order
 
-    def apply_fill(self, client_order_id: str, *, quantity: Decimal, price: Decimal) -> ExecutionOrder:
+    def apply_fill(
+        self,
+        client_order_id: str,
+        *,
+        quantity: Decimal,
+        price: Decimal,
+    ) -> ExecutionOrder:
         order = self._require_order(client_order_id)
         if order.status in {ExecutionStatus.CANCELED, ExecutionStatus.FILLED}:
             raise ValueError("terminal order cannot receive fills")

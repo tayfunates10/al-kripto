@@ -2,7 +2,7 @@
 
 `al-kripto`, kripto piyasa verileri üzerinde güvenlik öncelikli araştırma, backtest ve paper-simulation çalışmaları için geliştirilen bir Python projesidir.
 
-> Güncel tamamlanma: **%65** — Aşama 0–6 tamamlandı. Aşama 7 PR doğrulamasında.
+> Güncel tamamlanma: **%77** — Aşama 0–7 tamamlandı. Aşama 8 PR doğrulamasında.
 
 ## Kapsam
 
@@ -23,12 +23,12 @@
 | 4. Temel strateji | %10 | ✅ Tamamlandı | VWAP, trend ve oynaklık rejimi |
 | 5. On-chain rejim motoru | %8 | ✅ Tamamlandı | MVRV, SOPR, Puell ve NVT filtreleri |
 | 6. SMC motoru | %8 | ✅ Tamamlandı | Swing, sweep, BOS/CHoCH, FVG ve bloklar |
-| 7. Risk motoru | %12 | 🚧 PR doğrulamasında | Risk sınırları, korelasyon ve kill-switch |
-| 8. Testnet yürütmesi | %8 | ⏳ Bekliyor | Tekrarlanabilir test-environment iletimi |
+| 7. Risk motoru | %12 | ✅ Tamamlandı | Risk sınırları, korelasyon ve kill-switch |
+| 8. Testnet yürütmesi | %8 | 🚧 PR doğrulamasında | Tekrarlanabilir test-environment iletimi |
 | 9. ML araştırma katmanı | %5 | ⏳ Bekliyor | OOS doğrulamalı deneyler |
 | 10. İzleme ve panel | %5 | ⏳ Bekliyor | PnL, drawdown, veri ve sistem alarmları |
 | 11. Paper-to-production kapısı | %5 | ⏳ Bekliyor | Stres testi ve manuel dış onay |
-| **Toplam** | **%100** | **%65 tamamlandı** | |
+| **Toplam** | **%100** | **%77 tamamlandı** | |
 
 ## Tamamlanan teknik temel
 
@@ -43,6 +43,8 @@ Aşama 5 on-chain araştırma katmanı MVRV, SOPR, Puell Multiple ve NVT gözlem
 Aşama 6 SMC araştırma motoru swing, liquidity sweep, BOS/CHoCH, FVG ve deterministik order-block olayları üretir. Swing olayları sağ taraf doğrulaması tamamlanmadan kullanılmaz; her olay indeks ve zaman bilgisi taşır. Bu olaylar araştırma özelliğidir, doğrudan işlem sinyali değildir.
 
 Aşama 7 merkezi risk kapısı kill-switch, veri tazeliği, mutabakat, günlük kayıp, drawdown, açık pozisyon ve korelasyon kontrollerini uygular. İşlem başına risk ve maruziyet sınırları istek boyutunu yalnızca küçültebilir; risk motoru hiçbir zaman stratejinin istediğinden daha büyük maruziyet üretemez. Sayısal limitler zorunlu yapılandırmadır ve canlı kullanım için varsayılan yatırım ayarı seçilmez.
+
+Aşama 8 test-environment yürütmesi gerçek borsaya bağlanmadan idempotent istemci emir kimlikleri, kısmi/tam dolum, iptal ve terminal durum korumalarını doğrular. Gerçek API anahtarı veya sermaye gerektirmez; canlı yürütmeyi etkinleştirmez.
 
 ## Yerel geliştirme
 

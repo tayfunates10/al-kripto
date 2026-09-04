@@ -25,9 +25,7 @@ def assess_production_readiness(
         by_check[item.check] = item
 
     passed_checks = tuple(
-        check
-        for check in REQUIRED_READINESS_CHECKS
-        if check in by_check and by_check[check].passed
+        check for check in REQUIRED_READINESS_CHECKS if check in by_check and by_check[check].passed
     )
     failed_checks = tuple(
         check

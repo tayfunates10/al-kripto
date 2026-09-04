@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import time
+from collections.abc import Callable, Iterable
 from decimal import Decimal
 from itertools import pairwise
 
@@ -27,8 +28,14 @@ _ONE = Decimal("1")
 class BacktestEngine:
     """Run deterministic next-open simulations without future-data access."""
 
-    def __init__(self, config: BacktestConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: BacktestConfig | None = None,
+        *,
+        clock_ms: Callable[[], int] | None = None,
+    ) -> None:
         self._config = config or BacktestConfig()
+        self._clock_ms = clock_ms or (lambda: time.time_ns() // 1_000_000)
 
     def run(self, candles: Iterable[Candle], strategy: BacktestStrategy) -> BacktestResult:
         series = tuple(candles)
@@ -138,8 +145,7 @@ class BacktestEngine:
             net_pnl=net_pnl,
         )
 
-    @staticmethod
-    def _validate_series(series: tuple[Candle, ...]) -> None:
+    def _validate_series(self, series: tuple[Candle, ...]) -> None:
         if not series:
             raise BacktestValidationError("Backtest requires at least one candle.")
         symbol = series[0].symbol
@@ -149,3 +155,11 @@ class BacktestEngine:
             current.open_time_ms <= previous.close_time_ms for previous, current in pairwise(series)
         ):
             raise BacktestValidationError("Candles must be chronological and non-overlapping.")
+
+        as_of_ms = self._clock_ms()
+        if as_of_ms < 0:
+            raise BacktestValidationError("Backtest clock must be non-negative.")
+        if any(candle.close_time_ms > as_of_ms for candle in series):
+            raise BacktestValidationError(
+                "Backtest requires fully closed candles; in-progress candles are not allowed."
+            )

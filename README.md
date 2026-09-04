@@ -2,7 +2,7 @@
 
 `al-kripto`, kripto piyasa verileri üzerinde güvenlik öncelikli araştırma, backtest ve paper-simulation çalışmaları için geliştirilen bir Python projesidir.
 
-> Güncel tamamlanma: **%57** — Aşama 0–5 tamamlandı.
+> Güncel tamamlanma: **%57** — Aşama 0–5 tamamlandı. Aşama 6 PR doğrulamasında.
 
 ## Kapsam
 
@@ -22,7 +22,7 @@
 | 3. Backtest motoru | %15 | ✅ Tamamlandı | Olay tabanlı, maliyet ve gecikme duyarlı test |
 | 4. Temel strateji | %10 | ✅ Tamamlandı | VWAP, trend ve oynaklık rejimi |
 | 5. On-chain rejim motoru | %8 | ✅ Tamamlandı | MVRV, SOPR, Puell ve NVT filtreleri |
-| 6. SMC motoru | %8 | ⏳ Bekliyor | Swing, sweep, BOS/CHoCH, FVG ve bloklar |
+| 6. SMC motoru | %8 | 🚧 PR doğrulamasında | Swing, sweep, BOS/CHoCH, FVG ve bloklar |
 | 7. Risk motoru | %12 | ⏳ Bekliyor | Risk sınırları, korelasyon ve kill-switch |
 | 8. Testnet yürütmesi | %8 | ⏳ Bekliyor | Tekrarlanabilir test-environment iletimi |
 | 9. ML araştırma katmanı | %5 | ⏳ Bekliyor | OOS doğrulamalı deneyler |
@@ -39,6 +39,8 @@ Aşama 3 backtest motoru yalnızca kapanmış mum geçmişini stratejiye verir, 
 Aşama 4 temel araştırma sinyali; kısa/uzun hareketli ortalama trend filtresi, hacim ağırlıklı fiyat filtresi ve ortalama mutlak close-to-close değişim tabanlı oynaklık filtresinden oluşur. Yetersiz geçmiş veya sıfır hacimde `flat` döner.
 
 Aşama 5 on-chain araştırma katmanı MVRV, SOPR, Puell Multiple ve NVT gözlemlerini tarihsel yüzdeliklerle normalleştirilmiş biçimde taşır. Yayın zamanı ve veri tazeliği kontrol edilmeden bir gözlem rejim hesabına girmez; yetersiz güncel veri durumunda fail-closed `unknown` döner. Rejim etiketleri betimleyicidir ve doğrudan işlem emri değildir.
+
+Aşama 6 SMC araştırma motoru swing, liquidity sweep, BOS/CHoCH, FVG ve deterministik order-block olayları üretir. Swing olayları sağ taraf doğrulaması tamamlanmadan kullanılmaz; her olay indeks ve zaman bilgisi taşır. Bu olaylar araştırma özelliğidir, doğrudan işlem sinyali değildir.
 
 ## Yerel geliştirme
 

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Generic, Sequence, TypeVar
-
-T = TypeVar("T")
+from itertools import pairwise
 
 
 class ResearchValidationError(ValueError):
@@ -14,7 +13,7 @@ class ResearchValidationError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
-class ChronologicalSplit(Generic[T]):
+class ChronologicalSplit[T]:
     """Purged chronological train/validation/test split."""
 
     train: tuple[T, ...]
@@ -42,7 +41,7 @@ class PredictionRecord:
             raise ResearchValidationError("score must be finite and between 0 and 1.")
 
 
-def chronological_split(
+def chronological_split[T](
     samples: Sequence[T],
     *,
     train_size: int,
@@ -80,7 +79,7 @@ def binary_classification_metrics(records: Sequence[PredictionRecord]) -> dict[s
     """Calculate deterministic OOS accuracy, precision, recall and Brier score."""
     if not records:
         raise ResearchValidationError("at least one prediction record is required.")
-    if any(left.timestamp_ms >= right.timestamp_ms for left, right in zip(records, records[1:])):
+    if any(left.timestamp_ms >= right.timestamp_ms for left, right in pairwise(records)):
         raise ResearchValidationError("prediction records must be strictly chronological.")
 
     true_positive = sum(record.actual and record.predicted for record in records)

@@ -2,7 +2,9 @@
 
 `al-kripto`, kripto piyasa verileri üzerinde güvenlik öncelikli araştırma, backtest ve paper-simulation çalışmaları için geliştirilen bir Python projesidir.
 
-> Güncel tamamlanma: **%95** — Aşama 0–10 tamamlandı. Aşama 11 PR doğrulamasında.
+> Güncel tamamlanma: **%100** — Roadmap Aşama 0–11 tamamlandı ve kalite kapılarından geçirildi.
+
+> **Önemli:** `%100`, bu repository için planlanan güvenli araştırma/paper/test kapsamının tamamlandığını ifade eder. Gerçek para ile canlı işlem otomatik olarak etkin değildir; production kullanımı ayrı manuel güvenlik incelemesi ve dış ortam onayı gerektirir.
 
 ## Kapsam
 
@@ -27,8 +29,8 @@
 | 8. Testnet yürütmesi | %8 | ✅ Tamamlandı | Tekrarlanabilir test-environment iletimi |
 | 9. ML araştırma katmanı | %5 | ✅ Tamamlandı | OOS doğrulamalı deneyler |
 | 10. İzleme ve panel | %5 | ✅ Tamamlandı | PnL, drawdown, veri ve sistem alarmları |
-| 11. Paper-to-production kapısı | %5 | 🚧 PR doğrulamasında | Stres testi ve manuel dış onay |
-| **Toplam** | **%100** | **%95 tamamlandı** | |
+| 11. Paper-to-production kapısı | %5 | ✅ Tamamlandı | Fail-closed readiness ve manuel inceleme kapısı |
+| **Toplam** | **%100** | **%100 tamamlandı** | |
 
 ## Tamamlanan teknik temel
 
@@ -84,4 +86,4 @@ docs/                 Mimari, kanıt ve risk belgeleri
 
 ## Güvenlik sınırı
 
-Bu aşamalarda proje araştırma, backtest ve paper/simulation amacıyla tutulur. Gerçek para ile emir yürütmesi otomatik olarak açılmaz; production değerlendirmesi yalnızca manuel güvenlik incelemesine hazırlanabilir ve canlı mod mevcut çoklu kilitlerin arkasında kapalı kalır.
+Bu proje araştırma, backtest ve paper/simulation amacıyla güvenli varsayılanlarda tamamlanmıştır. Gerçek para ile emir yürütmesi otomatik olarak açılmaz; production değerlendirmesi yalnızca manuel güvenlik incelemesine hazırlanabilir ve canlı mod mevcut çoklu kilitlerin arkasında kapalı kalır.

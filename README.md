@@ -4,7 +4,7 @@
 stratejiler geliştirmek için tasarlanan güvenlik öncelikli bir araştırma ve işlem
 otomasyonu projesidir.
 
-> Güncel tamamlanma: **%24** — Aşama 0, Aşama 1 ve Aşama 2 tamamlandı.
+> Güncel tamamlanma: **%24** — Aşama 0, Aşama 1 ve Aşama 2 tamamlandı. Aşama 3 PR doğrulamasında.
 
 ## İlk ürün kapsamı
 
@@ -32,7 +32,7 @@ olarak ele alınır. Kaynak ve kabul kayıtları
 | 0. Kapsam ve kanıt kaydı | %5 | ✅ Tamamlandı | Araştırma iddiaları, kabul ölçütleri |
 | 1. Repo ve güvenlik temeli | %7 | ✅ Tamamlandı | Python iskeleti, CI, güvenli ayarlar |
 | 2. Veri altyapısı | %12 | ✅ Tamamlandı | Doğrulamalı mum, işlem ve order-book adaptörleri |
-| 3. Backtest motoru | %15 | ⏳ Bekliyor | Olay tabanlı, maliyet ve gecikme duyarlı test |
+| 3. Backtest motoru | %15 | 🚧 PR doğrulamasında | Olay tabanlı, maliyet ve gecikme duyarlı test |
 | 4. Temel strateji | %10 | ⏳ Bekliyor | VWAP, trend ve oynaklık rejimi |
 | 5. On-chain rejim motoru | %8 | ⏳ Bekliyor | MVRV, SOPR, Puell ve NVT filtreleri |
 | 6. SMC motoru | %8 | ⏳ Bekliyor | Swing, sweep, BOS/CHoCH, FVG ve bloklar |
@@ -56,6 +56,15 @@ olarak ele alınır. Kaynak ve kabul kayıtları
 - `BinanceSpotMarketData`, Binance Spot public market-data uçlarını yalnızca
   okuma amaçlı ve API anahtarı gerektirmeden kullanır.
 - Ağ transport'u enjekte edilebilir; birim testleri gerçek ağa çıkmadan çalışır.
+
+## Aşama 3 backtest ilkeleri
+
+- Strateji yalnızca kapanmış mum geçmişini görür; gelecekteki mum verilmez.
+- Sinyal, en erken bir sonraki mumun açılışında uygulanır.
+- Komisyon ve kayma sıfır kabul edilmez; test yapılandırmasında açıkça modellenir.
+- Portföy her kapanışta mark-to-market edilir; maksimum drawdown kaydedilir.
+- Tamamlanan round-trip işlemlerde gross/net PnL ve win-rate izlenir.
+- Backtest motoru yalnızca spot `long/flat` yürütür; kaldıraç veya short içermez.
 
 ## Güvenlik modeli
 

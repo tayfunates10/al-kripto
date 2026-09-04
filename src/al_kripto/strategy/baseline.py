@@ -34,10 +34,7 @@ class BaselineStrategyConfig:
                 raise ValueError(f"{field_name} must be > 0.")
         if self.fast_window >= self.slow_window:
             raise ValueError("fast_window must be smaller than slow_window.")
-        if (
-            not self.max_mean_absolute_return.is_finite()
-            or self.max_mean_absolute_return < _ZERO
-        ):
+        if not self.max_mean_absolute_return.is_finite() or self.max_mean_absolute_return < _ZERO:
             raise ValueError("max_mean_absolute_return must be finite and >= 0.")
 
     @property
@@ -64,9 +61,7 @@ class BaselineStrategy:
         fast = simple_moving_average(closes[-self._config.fast_window :])
         slow = simple_moving_average(closes[-self._config.slow_window :])
         vwap = volume_weighted_price(recent_history[-self._config.vwap_window :])
-        volatility = mean_absolute_return(
-            closes[-(self._config.volatility_window + 1) :]
-        )
+        volatility = mean_absolute_return(closes[-(self._config.volatility_window + 1) :])
 
         if vwap is None:
             return TargetPosition.FLAT

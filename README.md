@@ -2,7 +2,7 @@
 
 `al-kripto`, kripto piyasa verileri üzerinde güvenlik öncelikli araştırma, backtest ve paper-simulation çalışmaları için geliştirilen bir Python projesidir.
 
-> Güncel tamamlanma: **%57** — Aşama 0–5 tamamlandı. Aşama 6 PR doğrulamasında.
+> Güncel tamamlanma: **%65** — Aşama 0–6 tamamlandı.
 
 ## Kapsam
 
@@ -22,13 +22,13 @@
 | 3. Backtest motoru | %15 | ✅ Tamamlandı | Olay tabanlı, maliyet ve gecikme duyarlı test |
 | 4. Temel strateji | %10 | ✅ Tamamlandı | VWAP, trend ve oynaklık rejimi |
 | 5. On-chain rejim motoru | %8 | ✅ Tamamlandı | MVRV, SOPR, Puell ve NVT filtreleri |
-| 6. SMC motoru | %8 | 🚧 PR doğrulamasında | Swing, sweep, BOS/CHoCH, FVG ve bloklar |
+| 6. SMC motoru | %8 | ✅ Tamamlandı | Swing, sweep, BOS/CHoCH, FVG ve bloklar |
 | 7. Risk motoru | %12 | ⏳ Bekliyor | Risk sınırları, korelasyon ve kill-switch |
 | 8. Testnet yürütmesi | %8 | ⏳ Bekliyor | Tekrarlanabilir test-environment iletimi |
 | 9. ML araştırma katmanı | %5 | ⏳ Bekliyor | OOS doğrulamalı deneyler |
 | 10. İzleme ve panel | %5 | ⏳ Bekliyor | PnL, drawdown, veri ve sistem alarmları |
 | 11. Paper-to-production kapısı | %5 | ⏳ Bekliyor | Stres testi ve manuel dış onay |
-| **Toplam** | **%100** | **%57 tamamlandı** | |
+| **Toplam** | **%100** | **%65 tamamlandı** | |
 
 ## Tamamlanan teknik temel
 

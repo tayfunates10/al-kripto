@@ -2,7 +2,7 @@
 
 `al-kripto`, kripto piyasa verileri üzerinde güvenlik öncelikli araştırma, backtest ve paper-simulation çalışmaları için geliştirilen bir Python projesidir.
 
-> Güncel tamamlanma: **%90** — Aşama 0–9 tamamlandı. Aşama 10 PR doğrulamasında.
+> Güncel tamamlanma: **%95** — Aşama 0–10 tamamlandı. Aşama 11 PR doğrulamasında.
 
 ## Kapsam
 
@@ -26,9 +26,9 @@
 | 7. Risk motoru | %12 | ✅ Tamamlandı | Risk sınırları, korelasyon ve kill-switch |
 | 8. Testnet yürütmesi | %8 | ✅ Tamamlandı | Tekrarlanabilir test-environment iletimi |
 | 9. ML araştırma katmanı | %5 | ✅ Tamamlandı | OOS doğrulamalı deneyler |
-| 10. İzleme ve panel | %5 | 🚧 PR doğrulamasında | PnL, drawdown, veri ve sistem alarmları |
-| 11. Paper-to-production kapısı | %5 | ⏳ Bekliyor | Stres testi ve manuel dış onay |
-| **Toplam** | **%100** | **%90 tamamlandı** | |
+| 10. İzleme ve panel | %5 | ✅ Tamamlandı | PnL, drawdown, veri ve sistem alarmları |
+| 11. Paper-to-production kapısı | %5 | 🚧 PR doğrulamasında | Stres testi ve manuel dış onay |
+| **Toplam** | **%100** | **%95 tamamlandı** | |
 
 ## Tamamlanan teknik temel
 
@@ -49,6 +49,8 @@ Aşama 8 test-environment yürütmesi gerçek borsaya bağlanmadan idempotent is
 Aşama 9 ML araştırma katmanı kronolojik train/validation/test ayrımı, sınır purge boşlukları ve yalnızca OOS tahmin metriklerini uygular. ML çıktıları işlem emri değildir ve risk/yürütme katmanlarını doğrudan çağıramaz.
 
 Aşama 10 read-only izleme katmanı equity, günlük ve realized PnL, drawdown, günlük kayıp, veri yaşı, heartbeat, mutabakat, kill-switch, açık emir ve sistem hata durumlarını tek sağlık raporunda toplar. Kritik durumlar `blocked`, uyarılar `degraded` olarak raporlanır; dashboard payload'ı hiçbir gizli değer veya emir yetkisi taşımaz.
+
+Aşama 11 paper-to-production kapısı paper çalışma, stres testi, test-environment yürütmesi, CI, mutabakat, izleme, risk limitleri, kill-switch, secret politikası, para çekme yetkisi ve rollback planı için kanıt ister. Eksik tek kanıt `not_ready` üretir; tüm teknik kanıtlar geçse bile en ileri otomatik sonuç `ready_for_manual_review` olur ve canlı işlem kapalı kalır.
 
 ## Yerel geliştirme
 
@@ -82,4 +84,4 @@ docs/                 Mimari, kanıt ve risk belgeleri
 
 ## Güvenlik sınırı
 
-Bu aşamalarda proje araştırma, backtest ve paper/simulation amacıyla tutulur. Gerçek para ile emir yürütmesi otomatik olarak açılmaz; üretim benzeri kullanımlar ayrı manuel kapılara tabidir.
+Bu aşamalarda proje araştırma, backtest ve paper/simulation amacıyla tutulur. Gerçek para ile emir yürütmesi otomatik olarak açılmaz; production değerlendirmesi yalnızca manuel güvenlik incelemesine hazırlanabilir ve canlı mod mevcut çoklu kilitlerin arkasında kapalı kalır.

@@ -49,15 +49,11 @@ class TestExecutionEngineTests(unittest.TestCase):
             side=Side.BUY,
             quantity=Decimal("2"),
         )
-        partial = self.engine.apply_fill(
-            "order-2", quantity=Decimal("0.5"), price=Decimal("100")
-        )
+        partial = self.engine.apply_fill("order-2", quantity=Decimal("0.5"), price=Decimal("100"))
         self.assertEqual(partial.status, ExecutionStatus.PARTIALLY_FILLED)
         self.assertEqual(partial.remaining_quantity, Decimal("1.5"))
 
-        filled = self.engine.apply_fill(
-            "order-2", quantity=Decimal("1.5"), price=Decimal("101")
-        )
+        filled = self.engine.apply_fill("order-2", quantity=Decimal("1.5"), price=Decimal("101"))
         self.assertEqual(filled.status, ExecutionStatus.FILLED)
         self.assertEqual(filled.remaining_quantity, Decimal("0"))
 

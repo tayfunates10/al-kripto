@@ -2,7 +2,7 @@
 
 `al-kripto`, kripto piyasa verileri üzerinde güvenlik öncelikli araştırma, backtest ve paper-simulation çalışmaları için geliştirilen bir Python projesidir.
 
-> Güncel tamamlanma: **%85** — Aşama 0–8 tamamlandı. Aşama 9 sırada.
+> Güncel tamamlanma: **%85** — Aşama 0–8 tamamlandı. Aşama 9 PR doğrulamasında.
 
 ## Kapsam
 
@@ -25,7 +25,7 @@
 | 6. SMC motoru | %8 | ✅ Tamamlandı | Swing, sweep, BOS/CHoCH, FVG ve bloklar |
 | 7. Risk motoru | %12 | ✅ Tamamlandı | Risk sınırları, korelasyon ve kill-switch |
 | 8. Testnet yürütmesi | %8 | ✅ Tamamlandı | Tekrarlanabilir test-environment iletimi |
-| 9. ML araştırma katmanı | %5 | ⏳ Bekliyor | OOS doğrulamalı deneyler |
+| 9. ML araştırma katmanı | %5 | 🚧 PR doğrulamasında | OOS doğrulamalı deneyler |
 | 10. İzleme ve panel | %5 | ⏳ Bekliyor | PnL, drawdown, veri ve sistem alarmları |
 | 11. Paper-to-production kapısı | %5 | ⏳ Bekliyor | Stres testi ve manuel dış onay |
 | **Toplam** | **%100** | **%85 tamamlandı** | |
@@ -45,6 +45,8 @@ Aşama 6 SMC araştırma motoru swing, liquidity sweep, BOS/CHoCH, FVG ve determ
 Aşama 7 merkezi risk kapısı kill-switch, veri tazeliği, mutabakat, günlük kayıp, drawdown, açık pozisyon ve korelasyon kontrollerini uygular. İşlem başına risk ve maruziyet sınırları istek boyutunu yalnızca küçültebilir; risk motoru hiçbir zaman stratejinin istediğinden daha büyük maruziyet üretemez. Sayısal limitler zorunlu yapılandırmadır ve canlı kullanım için varsayılan yatırım ayarı seçilmez.
 
 Aşama 8 test-environment yürütmesi gerçek borsaya bağlanmadan idempotent istemci emir kimlikleri, kısmi/tam dolum, iptal ve terminal durum korumalarını doğrular. Gerçek API anahtarı veya sermaye gerektirmez; canlı yürütmeyi etkinleştirmez.
+
+Aşama 9 ML araştırma katmanı kronolojik train/validation/test ayrımı, sınır purge boşlukları ve yalnızca OOS tahmin metriklerini uygular. ML çıktıları işlem emri değildir ve risk/yürütme katmanlarını doğrudan çağıramaz.
 
 ## Yerel geliştirme
 

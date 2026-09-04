@@ -163,6 +163,26 @@ class BacktestEngineTests(unittest.TestCase):
                 SequenceStrategy((TargetPosition.FLAT,)),
             )
 
+    def test_rejects_in_progress_candle_before_strategy_evaluation(self) -> None:
+        candle = make_candle(1, "100", "101")
+        strategy = SequenceStrategy((TargetPosition.LONG,))
+        engine = BacktestEngine(clock_ms=lambda: candle.close_time_ms - 1)
+
+        with self.assertRaisesRegex(BacktestValidationError, "fully closed candles"):
+            engine.run((candle,), strategy)
+
+        self.assertEqual(strategy.history_lengths, [])
+
+    def test_accepts_candle_once_close_time_has_passed(self) -> None:
+        candle = make_candle(1, "100", "101")
+        strategy = SequenceStrategy((TargetPosition.FLAT,))
+        engine = BacktestEngine(clock_ms=lambda: candle.close_time_ms)
+
+        result = engine.run((candle,), strategy)
+
+        self.assertEqual(len(result.equity_curve), 1)
+        self.assertEqual(strategy.history_lengths, [1])
+
     def test_rejects_empty_series(self) -> None:
         with self.assertRaises(BacktestValidationError):
             BacktestEngine().run((), SequenceStrategy((TargetPosition.FLAT,)))

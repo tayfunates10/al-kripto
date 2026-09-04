@@ -120,7 +120,10 @@ class MonitoringEvaluationTests(unittest.TestCase):
         report = evaluate_monitoring(_snapshot(open_orders=4), _thresholds())
 
         self.assertEqual(report.status, HealthStatus.DEGRADED)
-        self.assertEqual(tuple(alert.code for alert in report.alerts), (AlertCode.OPEN_ORDERS_WARNING,))
+        self.assertEqual(
+            tuple(alert.code for alert in report.alerts),
+            (AlertCode.OPEN_ORDERS_WARNING,),
+        )
 
     def test_dashboard_payload_is_json_safe_and_read_only(self) -> None:
         report = evaluate_monitoring(

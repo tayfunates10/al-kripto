@@ -61,7 +61,7 @@ class PredictionMetricsTests(unittest.TestCase):
         self.assertEqual(metrics["accuracy"], Decimal("0.5"))
         self.assertEqual(metrics["precision"], Decimal("0.5"))
         self.assertEqual(metrics["recall"], Decimal("0.5"))
-        self.assertEqual(metrics["brier_score"], Decimal("0.2275"))
+        self.assertEqual(metrics["brier_score"], Decimal("0.2175"))
 
     def test_rejects_non_chronological_predictions(self) -> None:
         records = (

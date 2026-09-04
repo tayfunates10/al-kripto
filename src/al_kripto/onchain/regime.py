@@ -54,7 +54,12 @@ class OnChainRegimeEngine:
     def __init__(self, config: OnChainRegimeConfig | None = None) -> None:
         self._config = config or OnChainRegimeConfig()
 
-    def classify(self, snapshot: OnChainSnapshot, *, decision_time_ms: int) -> OnChainRegimeAssessment:
+    def classify(
+        self,
+        snapshot: OnChainSnapshot,
+        *,
+        decision_time_ms: int,
+    ) -> OnChainRegimeAssessment:
         if decision_time_ms < 0:
             raise ValueError("decision_time_ms must be >= 0.")
 

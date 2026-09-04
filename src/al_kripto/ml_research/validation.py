@@ -96,17 +96,15 @@ def binary_classification_metrics(records: Sequence[PredictionRecord]) -> dict[s
         else Decimal("0")
     )
     recall = (
-        Decimal(true_positive) / Decimal(recall_denominator)
-        if recall_denominator
-        else Decimal("0")
+        Decimal(true_positive) / Decimal(recall_denominator) if recall_denominator else Decimal("0")
     )
-    brier = sum(
-        (
-            record.score - (Decimal("1") if record.actual else Decimal("0"))
+    brier = (
+        sum(
+            (record.score - (Decimal("1") if record.actual else Decimal("0"))) ** 2
+            for record in records
         )
-        ** 2
-        for record in records
-    ) / total
+        / total
+    )
 
     return {
         "accuracy": Decimal(correct) / total,

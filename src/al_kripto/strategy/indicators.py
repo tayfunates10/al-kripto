@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from itertools import pairwise
 
 from al_kripto.market_data import Candle
 
@@ -33,7 +34,7 @@ def mean_absolute_return(closes: tuple[Decimal, ...]) -> Decimal:
         raise ValueError("at least two closes are required.")
 
     returns: list[Decimal] = []
-    for previous, current in zip(closes, closes[1:], strict=False):
+    for previous, current in pairwise(closes):
         if previous <= _ZERO:
             raise ValueError("close prices must be > 0.")
         returns.append(abs((current / previous) - Decimal("1")))

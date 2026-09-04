@@ -59,10 +59,11 @@ class BaselineStrategy:
         if len(history) < self._config.minimum_history:
             return TargetPosition.FLAT
 
-        closes = tuple(candle.close for candle in history)
+        recent_history = history[-self._config.minimum_history :]
+        closes = tuple(candle.close for candle in recent_history)
         fast = simple_moving_average(closes[-self._config.fast_window :])
         slow = simple_moving_average(closes[-self._config.slow_window :])
-        vwap = volume_weighted_price(history[-self._config.vwap_window :])
+        vwap = volume_weighted_price(recent_history[-self._config.vwap_window :])
         volatility = mean_absolute_return(
             closes[-(self._config.volatility_window + 1) :]
         )

@@ -105,8 +105,11 @@ class ReadinessAssessmentTests(unittest.TestCase):
             payload["next_action"],
             "complete_missing_or_failed_evidence",
         )
+        missing_checks = payload["missing_checks"]
+        self.assertIsInstance(missing_checks, list)
+        assert isinstance(missing_checks, list)
         self.assertEqual(
-            tuple(payload["missing_checks"]),
+            tuple(missing_checks),
             tuple(check.value for check in REQUIRED_READINESS_CHECKS),
         )
 

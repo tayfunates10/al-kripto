@@ -77,9 +77,7 @@ class OnChainModelTests(unittest.TestCase):
 
 class OnChainRegimeTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.engine = OnChainRegimeEngine(
-            OnChainRegimeConfig(max_age_ms=10_000, minimum_metrics=3)
-        )
+        self.engine = OnChainRegimeEngine(OnChainRegimeConfig(max_age_ms=10_000, minimum_metrics=3))
 
     def test_classifies_high_consensus_as_overheated(self) -> None:
         result = self.engine.classify(

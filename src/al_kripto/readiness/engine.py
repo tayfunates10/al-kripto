@@ -25,10 +25,14 @@ def assess_production_readiness(
         by_check[item.check] = item
 
     passed_checks = tuple(
-        check for check in REQUIRED_READINESS_CHECKS if check in by_check and by_check[check].passed
+        check
+        for check in REQUIRED_READINESS_CHECKS
+        if check in by_check and by_check[check].passed
     )
     failed_checks = tuple(
-        check for check in REQUIRED_READINESS_CHECKS if check in by_check and not by_check[check].passed
+        check
+        for check in REQUIRED_READINESS_CHECKS
+        if check in by_check and not by_check[check].passed
     )
     missing_checks = tuple(check for check in REQUIRED_READINESS_CHECKS if check not in by_check)
 
@@ -37,7 +41,9 @@ def assess_production_readiness(
         if not failed_checks and not missing_checks
         else ReadinessStatus.NOT_READY
     )
-    ordered_evidence = tuple(by_check[check] for check in REQUIRED_READINESS_CHECKS if check in by_check)
+    ordered_evidence = tuple(
+        by_check[check] for check in REQUIRED_READINESS_CHECKS if check in by_check
+    )
 
     return ReadinessAssessment(
         status=status,

@@ -49,7 +49,7 @@ def chronological_split[T](
     test_size: int,
     purge_size: int = 0,
 ) -> ChronologicalSplit[T]:
-    """Split ordered samples without shuffling and purge boundaries to reduce leakage."""
+    """Split the newest ordered window without shuffling and purge split boundaries."""
     sizes = (train_size, validation_size, test_size)
     if any(size <= 0 for size in sizes):
         raise ResearchValidationError("split sizes must be > 0.")
@@ -62,14 +62,16 @@ def chronological_split[T](
             f"not enough samples: need at least {required}, received {len(samples)}."
         )
 
-    train_end = train_size
+    window_start = len(samples) - required
+    train_start = window_start
+    train_end = train_start + train_size
     validation_start = train_end + purge_size
     validation_end = validation_start + validation_size
     test_start = validation_end + purge_size
     test_end = test_start + test_size
 
     return ChronologicalSplit(
-        train=tuple(samples[:train_end]),
+        train=tuple(samples[train_start:train_end]),
         validation=tuple(samples[validation_start:validation_end]),
         test=tuple(samples[test_start:test_end]),
     )

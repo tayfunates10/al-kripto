@@ -54,7 +54,7 @@ class _FlatStrategy:
 class _FakeMarketData:
     def __init__(self, candles: list[Candle]) -> None:
         self._candles = candles
-        self.candle_requests: list[tuple[str, str, int]] = []
+        self.candle_requests: list[tuple[str, str, int, bool]] = []
 
     def fetch_candles(
         self,
@@ -64,9 +64,10 @@ class _FakeMarketData:
         limit: int = 500,
         start_time_ms: int | None = None,
         end_time_ms: int | None = None,
+        only_closed: bool = True,
     ) -> list[Candle]:
         del start_time_ms, end_time_ms
-        self.candle_requests.append((symbol, interval, limit))
+        self.candle_requests.append((symbol, interval, limit, only_closed))
         return list(self._candles[:limit])
 
     def fetch_trades(
@@ -221,7 +222,11 @@ def _plan() -> PaperValidationPlan:
     )
 
 
-def _pipeline(source: _FakeMarketData) -> PaperValidationPipeline:
+def _pipeline(
+    source: _FakeMarketData,
+    *,
+    kill_switch_engaged: bool = False,
+) -> PaperValidationPipeline:
     return PaperValidationPipeline(
         market_data=source,
         backtest=BacktestEngine(clock_ms=lambda: 1_000_000),
@@ -235,7 +240,7 @@ def _pipeline(source: _FakeMarketData) -> PaperValidationPipeline:
                 max_observation_age_ms=10_000,
             )
         ),
-        risk=RiskEngine(_risk_limits(), KillSwitch(engaged=False)),
+        risk=RiskEngine(_risk_limits(), KillSwitch(engaged=kill_switch_engaged)),
         execution=TestExecutionEngine(),
     )
 
@@ -245,7 +250,7 @@ class PaperValidationPipelineTests(unittest.TestCase):
         source = _FakeMarketData(_candles())
         cycle = _pipeline(source).run(_plan(), _inputs())
 
-        self.assertEqual(source.candle_requests, [("BTCUSDT", "1m", 6)])
+        self.assertEqual(source.candle_requests, [("BTCUSDT", "1m", 6, True)])
         self.assertEqual(len(cycle.candles), 6)
         self.assertEqual(cycle.backtest.fills, ())
         self.assertEqual(cycle.risk.decision, RiskDecision.APPROVE)
@@ -259,6 +264,51 @@ class PaperValidationPipelineTests(unittest.TestCase):
         self.assertEqual(cycle.test_order.symbol, "BTCUSDT")
         self.assertFalse(cycle.live_trading_enabled)
 
+    def test_pipeline_can_run_same_plan_across_distinct_decision_times(self) -> None:
+        source = _FakeMarketData(_candles())
+        pipeline = _pipeline(source)
+        first_inputs = _inputs()
+        second_inputs = replace(
+            first_inputs,
+            decision_time_ms=2_501,
+            readiness_as_of_ms=2_501,
+            monitoring_snapshot=replace(first_inputs.monitoring_snapshot, observed_at_ms=2_501),
+            position_request=replace(
+                first_inputs.position_request,
+                requested_notional=Decimal("50"),
+                risk_at_stop=Decimal("5"),
+            ),
+        )
+
+        first = pipeline.run(_plan(), first_inputs)
+        second = pipeline.run(_plan(), second_inputs)
+
+        assert first.test_order is not None
+        assert second.test_order is not None
+        self.assertEqual(first.test_order.client_order_id, "paper-cycle-1-2500")
+        self.assertEqual(second.test_order.client_order_id, "paper-cycle-1-2501")
+        self.assertNotEqual(first.test_order.client_order_id, second.test_order.client_order_id)
+        self.assertNotEqual(first.test_order.quantity, second.test_order.quantity)
+        self.assertFalse(first.live_trading_enabled)
+        self.assertFalse(second.live_trading_enabled)
+
+    def test_execution_collision_is_wrapped_as_pipeline_validation_error(self) -> None:
+        source = _FakeMarketData(_candles())
+        pipeline = _pipeline(source)
+        first_inputs = _inputs()
+        pipeline.run(_plan(), first_inputs)
+        conflicting = replace(
+            first_inputs,
+            position_request=replace(
+                first_inputs.position_request,
+                requested_notional=Decimal("50"),
+                risk_at_stop=Decimal("5"),
+            ),
+        )
+
+        with self.assertRaises(PipelineValidationError):
+            pipeline.run(_plan(), conflicting)
+
     def test_paused_monitoring_prevents_even_test_order_submission(self) -> None:
         source = _FakeMarketData(_candles())
         inputs = _inputs()
@@ -270,11 +320,22 @@ class PaperValidationPipelineTests(unittest.TestCase):
             ),
         )
 
-        cycle = _pipeline(source).run(_plan(), paused)
+        cycle = _pipeline(source, kill_switch_engaged=True).run(_plan(), paused)
 
         self.assertEqual(cycle.monitoring.status, HealthStatus.PAUSED)
         self.assertIsNone(cycle.test_order)
         self.assertFalse(cycle.live_trading_enabled)
+
+    def test_kill_switch_state_mismatch_is_rejected(self) -> None:
+        source = _FakeMarketData(_candles())
+        inputs = _inputs()
+        inconsistent = replace(
+            inputs,
+            monitoring_snapshot=replace(inputs.monitoring_snapshot, kill_switch_engaged=True),
+        )
+
+        with self.assertRaisesRegex(PipelineValidationError, "kill-switch"):
+            _pipeline(source, kill_switch_engaged=False).run(_plan(), inconsistent)
 
     def test_inconsistent_risk_and_monitoring_equity_is_rejected(self) -> None:
         inputs = _inputs()
@@ -286,6 +347,15 @@ class PaperValidationPipelineTests(unittest.TestCase):
                     inputs.monitoring_snapshot,
                     equity=Decimal("999"),
                 ),
+            )
+
+    def test_inconsistent_monitoring_time_is_rejected(self) -> None:
+        inputs = _inputs()
+
+        with self.assertRaisesRegex(PipelineValidationError, "monitoring snapshot time"):
+            replace(
+                inputs,
+                monitoring_snapshot=replace(inputs.monitoring_snapshot, observed_at_ms=1),
             )
 
     def test_test_order_quantity_is_rounded_to_the_plan_quantity_step(self) -> None:
@@ -308,7 +378,6 @@ class PaperValidationPipelineTests(unittest.TestCase):
     def test_onchain_asset_prefix_does_not_pass_as_base_asset(self) -> None:
         source = _FakeMarketData(_candles())
         inputs = _inputs()
-        # Puell Multiple is BTC-only, so build the mismatched snapshot without it.
         prefixed = replace(
             inputs,
             onchain_snapshot=OnChainSnapshot(

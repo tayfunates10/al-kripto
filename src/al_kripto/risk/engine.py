@@ -39,6 +39,12 @@ class RiskEngine:
         self._limits = limits
         self._kill_switch = kill_switch
 
+    @property
+    def kill_switch_engaged(self) -> bool:
+        """Expose the authoritative kill-switch state for cross-module consistency checks."""
+
+        return self._kill_switch.engaged
+
     def evaluate(self, request: PositionRequest, context: RiskContext) -> RiskAssessment:
         """Approve, reduce, or reject a proposed increase in spot long exposure."""
         blocking_reason = self._blocking_reason(request, context)

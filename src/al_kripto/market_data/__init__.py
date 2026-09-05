@@ -13,6 +13,7 @@ from .models import (
     OrderBookLevel,
     OrderBookSnapshot,
     Trade,
+    validate_symbol,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "OrderBookLevel",
     "OrderBookSnapshot",
     "Trade",
+    "validate_symbol",
 ]

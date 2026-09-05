@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
-_REFERENCE_PATTERN = re.compile(r"^(?:[a-z][a-z0-9+.-]*://\S{3,}|[0-9a-fA-F]{40})$")
+_REFERENCE_PATTERN = re.compile(r"^(?:(?:https|evidence)://\S{3,}|[0-9a-fA-F]{40})$")
 
 
 class ReadinessValidationError(ValueError):
@@ -52,7 +52,7 @@ class ReadinessEvidence:
     def __post_init__(self) -> None:
         if not _REFERENCE_PATTERN.fullmatch(self.reference.strip()):
             raise ReadinessValidationError(
-                "evidence reference must be a URI-like reference or a 40-character commit SHA."
+                "evidence reference must be HTTPS/evidence URI or a 40-character commit SHA."
             )
         if self.recorded_at_ms < 0:
             raise ReadinessValidationError("recorded_at_ms must be >= 0.")

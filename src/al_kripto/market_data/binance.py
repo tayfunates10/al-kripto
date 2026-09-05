@@ -16,7 +16,7 @@ from .models import (
     OrderBookLevel,
     OrderBookSnapshot,
     Trade,
-    _validate_symbol,
+    validate_symbol,
 )
 
 BINANCE_PUBLIC_DATA_URL = "https://data-api.binance.vision"
@@ -103,7 +103,7 @@ class BinanceSpotMarketData:
         end_time_ms: int | None = None,
         only_closed: bool = True,
     ) -> list[Candle]:
-        _validate_symbol(symbol)
+        validate_symbol(symbol)
         if interval not in _SUPPORTED_INTERVALS:
             raise ValueError(f"Unsupported Binance interval: {interval!r}")
         _validate_limit(limit, maximum=1000)
@@ -145,7 +145,7 @@ class BinanceSpotMarketData:
         limit: int = 500,
         start_time_ms: int | None = None,
     ) -> list[Trade]:
-        _validate_symbol(symbol)
+        validate_symbol(symbol)
         _validate_limit(limit, maximum=1000)
         _validate_optional_timestamp(start_time_ms, "start_time_ms")
         payload = self._get(
@@ -163,7 +163,7 @@ class BinanceSpotMarketData:
         return trades
 
     def fetch_order_book(self, symbol: str, *, limit: int = 100) -> OrderBookSnapshot:
-        _validate_symbol(symbol)
+        validate_symbol(symbol)
         _validate_limit(limit, maximum=5000)
         payload = _as_mapping(
             self._get("/api/v3/depth", {"symbol": symbol, "limit": limit}),

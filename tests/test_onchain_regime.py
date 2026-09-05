@@ -177,22 +177,14 @@ class OnChainRegimeTests(unittest.TestCase):
         self.assertEqual(result.usable_metrics, (MetricName.SOPR, MetricName.PUELL_MULTIPLE))
         self.assertEqual(result.excluded_metrics, (MetricName.MVRV,))
 
-    def test_consensus_threshold_is_independent_from_minimum_data_threshold(self) -> None:
-        engine = OnChainRegimeEngine(
+    def test_consensus_threshold_cannot_exceed_minimum_data_threshold(self) -> None:
+        with self.assertRaisesRegex(ValueError, "consensus_metrics"):
             OnChainRegimeConfig(
                 minimum_metrics=2,
                 consensus_metrics=3,
                 max_age_ms=10_000,
                 max_observation_age_ms=10_000,
             )
-        )
-
-        result = engine.classify(
-            btc_snapshot(("0.95", "0.95", "0.50", "0.50")),
-            decision_time_ms=2_500,
-        )
-
-        self.assertEqual(result.regime, OnChainRegime.NEUTRAL)
 
     def test_invalid_threshold_order_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

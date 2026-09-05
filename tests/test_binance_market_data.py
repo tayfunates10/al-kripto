@@ -30,13 +30,13 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
             {
                 "/api/v3/klines": [
                     [
-                        1000,
+                        1_000,
                         "100.0",
                         "110.0",
                         "95.0",
                         "105.0",
                         "2.0",
-                        1999,
+                        60_999,
                         "210.0",
                         8,
                         "0.8",
@@ -46,14 +46,14 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
                 ]
             }
         )
-        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 3000)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 70_000)
 
         candles = source.fetch_candles(
             "BTCUSDT",
             "1m",
             limit=10,
-            start_time_ms=1000,
-            end_time_ms=2000,
+            start_time_ms=1_000,
+            end_time_ms=2_000,
         )
 
         self.assertEqual(candles[0].high, Decimal("110.0"))
@@ -68,31 +68,83 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
         transport = FakeTransport(
             {
                 "/api/v3/klines": [
-                    [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"],
-                    [2000, "105", "111", "104", "110", "2", 2999, "220", 8, "0.8", "88", "0"],
+                    [
+                        1_000,
+                        "100",
+                        "110",
+                        "95",
+                        "105",
+                        "2",
+                        60_999,
+                        "210",
+                        8,
+                        "0.8",
+                        "84",
+                        "0",
+                    ],
+                    [
+                        61_000,
+                        "105",
+                        "111",
+                        "104",
+                        "110",
+                        "2",
+                        120_999,
+                        "220",
+                        8,
+                        "0.8",
+                        "88",
+                        "0",
+                    ],
                 ]
             }
         )
-        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 2500)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 90_000)
 
         candles = source.fetch_candles("BTCUSDT", "1m")
 
-        self.assertEqual([candle.open_time_ms for candle in candles], [1000])
+        self.assertEqual([candle.open_time_ms for candle in candles], [1_000])
 
     def test_can_return_in_progress_candle_when_explicitly_requested(self) -> None:
         transport = FakeTransport(
             {
                 "/api/v3/klines": [
-                    [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"],
-                    [2000, "105", "111", "104", "110", "2", 2999, "220", 8, "0.8", "88", "0"],
+                    [
+                        1_000,
+                        "100",
+                        "110",
+                        "95",
+                        "105",
+                        "2",
+                        60_999,
+                        "210",
+                        8,
+                        "0.8",
+                        "84",
+                        "0",
+                    ],
+                    [
+                        61_000,
+                        "105",
+                        "111",
+                        "104",
+                        "110",
+                        "2",
+                        120_999,
+                        "220",
+                        8,
+                        "0.8",
+                        "88",
+                        "0",
+                    ],
                 ]
             }
         )
-        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 2500)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 90_000)
 
         candles = source.fetch_candles("BTCUSDT", "1m", only_closed=False)
 
-        self.assertEqual([candle.open_time_ms for candle in candles], [1000, 2000])
+        self.assertEqual([candle.open_time_ms for candle in candles], [1_000, 61_000])
 
     def test_parses_aggregate_trades(self) -> None:
         transport = FakeTransport(
@@ -128,20 +180,59 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
         transport = FakeTransport(
             {
                 "/api/v3/klines": [
-                    [2000, "100", "110", "95", "105", "2", 2999, "210", 8, "0.8", "84", "0"],
-                    [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"],
+                    [
+                        61_000,
+                        "100",
+                        "110",
+                        "95",
+                        "105",
+                        "2",
+                        120_999,
+                        "210",
+                        8,
+                        "0.8",
+                        "84",
+                        "0",
+                    ],
+                    [
+                        1_000,
+                        "100",
+                        "110",
+                        "95",
+                        "105",
+                        "2",
+                        60_999,
+                        "210",
+                        8,
+                        "0.8",
+                        "84",
+                        "0",
+                    ],
                 ]
             }
         )
-        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 4000)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 130_000)
 
         with self.assertRaises(MarketDataPayloadError):
             source.fetch_candles("BTCUSDT", "1m")
 
     def test_rejects_duplicate_candle_open_times(self) -> None:
-        duplicate = [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"]
+        duplicate = [
+            1_000,
+            "100",
+            "110",
+            "95",
+            "105",
+            "2",
+            60_999,
+            "210",
+            8,
+            "0.8",
+            "84",
+            "0",
+        ]
         transport = FakeTransport({"/api/v3/klines": [duplicate, duplicate.copy()]})
-        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 4000)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 70_000)
 
         with self.assertRaises(MarketDataPayloadError):
             source.fetch_candles("BTCUSDT", "1m")

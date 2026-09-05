@@ -38,6 +38,8 @@ class OnChainRegimeConfig:
             raise ValueError("minimum_metrics must be between 1 and the supported metric count.")
         if not 1 <= self.consensus_metrics <= len(MetricName):
             raise ValueError("consensus_metrics must be between 1 and the supported metric count.")
+        if self.consensus_metrics > self.minimum_metrics:
+            raise ValueError("consensus_metrics must not exceed minimum_metrics.")
         if self.max_age_ms <= 0:
             raise ValueError("max_age_ms must be > 0.")
         if self.max_observation_age_ms <= 0:

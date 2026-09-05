@@ -12,6 +12,7 @@ from al_kripto.market_data import BinanceSpotMarketData, Candle
 
 class _FlatStrategy:
     def target_position(self, history: Sequence[Candle]) -> TargetPosition:
+        del history
         return TargetPosition.FLAT
 
 
@@ -30,14 +31,40 @@ class MarketDataBacktestIntegrationTests(unittest.TestCase):
     def test_default_market_data_output_is_directly_backtest_safe(self) -> None:
         transport = _Transport(
             [
-                [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"],
-                [2000, "105", "111", "104", "110", "2", 2999, "220", 8, "0.8", "88", "0"],
+                [
+                    1_000,
+                    "100",
+                    "110",
+                    "95",
+                    "105",
+                    "2",
+                    60_999,
+                    "210",
+                    8,
+                    "0.8",
+                    "84",
+                    "0",
+                ],
+                [
+                    61_000,
+                    "105",
+                    "111",
+                    "104",
+                    "110",
+                    "2",
+                    120_999,
+                    "220",
+                    8,
+                    "0.8",
+                    "88",
+                    "0",
+                ],
             ]
         )
-        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 2500)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 90_000)
         candles = source.fetch_candles("BTCUSDT", "1m")
 
-        result = BacktestEngine(clock_ms=lambda: 2500).run(candles, _FlatStrategy())
+        result = BacktestEngine(clock_ms=lambda: 90_000).run(candles, _FlatStrategy())
 
         self.assertEqual(transport.calls, ["/api/v3/klines"])
         self.assertEqual(len(candles), 1)

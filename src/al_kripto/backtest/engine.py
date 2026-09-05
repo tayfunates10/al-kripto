@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Iterable, Sequence
-from decimal import ROUND_DOWN, Decimal
+from decimal import ROUND_DOWN, Decimal, DecimalException, localcontext
 from itertools import pairwise
 from typing import overload
 
@@ -195,6 +195,12 @@ class BacktestEngine:
             raise BacktestValidationError("All candles must use the same symbol.")
         if any(candle.interval != interval for candle in series):
             raise BacktestValidationError("All candles must use the same interval metadata.")
+        if interval is None:
+            durations = {candle.close_time_ms - candle.open_time_ms + 1 for candle in series}
+            if len(durations) != 1:
+                raise BacktestValidationError(
+                    "Candles without interval metadata must use the same actual duration."
+                )
         if any(
             current.open_time_ms <= previous.close_time_ms for previous, current in pairwise(series)
         ):
@@ -210,5 +216,17 @@ class BacktestEngine:
 
 
 def _round_down_to_step(quantity: Decimal, step: Decimal) -> Decimal:
-    units = (quantity / step).to_integral_value(rounding=ROUND_DOWN)
-    return units * step
+    try:
+        required_precision = max(
+            28,
+            len(quantity.as_tuple().digits)
+            + len(step.as_tuple().digits)
+            + abs(quantity.adjusted() - step.adjusted())
+            + 8,
+        )
+        with localcontext() as context:
+            context.prec = required_precision
+            units = (quantity / step).to_integral_value(rounding=ROUND_DOWN)
+            return units * step
+    except DecimalException as exc:
+        raise BacktestValidationError("Unable to round quantity to the configured step.") from exc

@@ -88,18 +88,47 @@ from decimal import Decimal as D
 from al_kripto.market_data import Candle
 from al_kripto.smc.engine import SMCEngine
 
+
 def c(i, o, h, l, cl):
     t = i * 60_000
-    return Candle(symbol="BTCUSDT", open_time_ms=t, close_time_ms=t + 59_999,
-                  open=D(str(o)), high=D(str(h)), low=D(str(l)), close=D(str(cl)),
-                  volume=D("10"), quote_volume=D("1000"), trade_count=5,
-                  taker_buy_base_volume=D("5"), taker_buy_quote_volume=D("500"))
+    return Candle(
+        symbol="BTCUSDT",
+        open_time_ms=t,
+        close_time_ms=t + 59_999,
+        open=D(str(o)),
+        high=D(str(h)),
+        low=D(str(l)),
+        close=D(str(cl)),
+        volume=D("10"),
+        quote_volume=D("1000"),
+        trade_count=5,
+        taker_buy_base_volume=D("5"),
+        taker_buy_quote_volume=D("500"),
+    )
 
-seq = [(100,105,99,104),(104,112,103,111),(111,120,110,112),(112,114,108,109),
-       (109,111,105,106),(106,118,105,117),(117,126,116,118),(118,120,112,113),
-       (113,116,110,111),(111,124,110,123),(123,132,122,124),(124,126,118,119),
-       (119,122,116,117),(117,140,116,139),(139,142,138,141),(141,144,140,143),
-       (143,146,142,145),(145,148,144,147),(147,150,146,149),(149,152,148,151)]
+
+seq = [
+    (100, 105, 99, 104),
+    (104, 112, 103, 111),
+    (111, 120, 110, 112),
+    (112, 114, 108, 109),
+    (109, 111, 105, 106),
+    (106, 118, 105, 117),
+    (117, 126, 116, 118),
+    (118, 120, 112, 113),
+    (113, 116, 110, 111),
+    (111, 124, 110, 123),
+    (123, 132, 122, 124),
+    (124, 126, 118, 119),
+    (119, 122, 116, 117),
+    (117, 140, 116, 139),
+    (139, 142, 138, 141),
+    (141, 144, 140, 143),
+    (143, 146, 142, 145),
+    (145, 148, 144, 147),
+    (147, 150, 146, 149),
+    (149, 152, 148, 151),
+]
 a = SMCEngine().analyze(tuple(c(i, *v) for i, v in enumerate(seq)))
 for b in a.breaks:
     print(b.index, b.direction.value, b.kind.value, b.level)
@@ -155,10 +184,18 @@ Bunlar sağlanmadığında `MonitoringValidationError` fırlatılıyor. Yani:
   sıradan bir durum) izleme yine çöküyor.
 
 ```python
-MonitoringSnapshot(observed_at_ms=1, equity=D("0"), start_of_day_equity=D("10000"),
-                   peak_equity=D("10000"), realized_pnl=D("-10000"), market_data_age_ms=0,
-                   heartbeat_age_ms=0, reconciliation_ok=True, kill_switch_engaged=False,
-                   open_orders=0)
+MonitoringSnapshot(
+    observed_at_ms=1,
+    equity=D("0"),
+    start_of_day_equity=D("10000"),
+    peak_equity=D("10000"),
+    realized_pnl=D("-10000"),
+    market_data_age_ms=0,
+    heartbeat_age_ms=0,
+    reconciliation_ok=True,
+    kill_switch_engaged=False,
+    open_orders=0,
+)
 # MonitoringValidationError: equity must be finite and > 0.
 ```
 
@@ -180,9 +217,8 @@ sessizce düşürüyor. Zaman serisi OOS doğrulamasında test setinin serinin *
 beklenir; burada tam tersi oluyor.
 
 ```python
-samples = list(range(1000))            # 999 = en yeni gözlem
-sp = chronological_split(samples, train_size=100, validation_size=50,
-                         test_size=50, purge_size=5)
+samples = list(range(1000))  # 999 = en yeni gözlem
+sp = chronological_split(samples, train_size=100, validation_size=50, test_size=50, purge_size=5)
 # train 0..99 | val 105..154 | test 160..209
 # 790 en güncel örnek sessizce atıldı; model en eski %21'lik dilimde test edildi.
 ```
@@ -210,16 +246,16 @@ e = TestExecutionEngine()
 o = e.submit(client_order_id="c1", symbol="BTCUSDT", side=Side.BUY, quantity=D("1"))
 o.status = ExecutionStatus.FILLED
 o.quantity = D("999999")
-e.get("c1").quantity        # -> Decimal('999999')  motor kaydı bozuldu
+e.get("c1").quantity  # -> Decimal('999999')  motor kaydı bozuldu
 ```
 
 Daha ciddisi, iptal koruması dışarıdan aşılabiliyor:
 
 ```python
 e.cancel("c2")
-e.apply_fill("c2", quantity=D("1"), price=D("100"))   # ValueError (doğru)
-o2.status = ExecutionStatus.NEW                        # korumayı sıfırla
-e.apply_fill("c2", quantity=D("1"), price=D("100"))   # geçti — iptal edilmiş emre dolum
+e.apply_fill("c2", quantity=D("1"), price=D("100"))  # ValueError (doğru)
+o2.status = ExecutionStatus.NEW  # korumayı sıfırla
+e.apply_fill("c2", quantity=D("1"), price=D("100"))  # geçti — iptal edilmiş emre dolum
 ```
 
 Aşama 8'in iddiası "idempotent istemci emir kimlikleri, kısmi/tam dolum, iptal ve terminal
@@ -293,7 +329,7 @@ kullanıyor. Limit `0` olduğunda korelasyonu tamamen sıfır olan bir portföyd
 `0 >= 0` doğru olduğu için **her talep reddediliyor**.
 
 ```python
-limits = RiskLimits(..., max_abs_correlation=D("0"))          # kabul ediliyor
+limits = RiskLimits(..., max_abs_correlation=D("0"))  # kabul ediliyor
 engine.evaluate(request, ctx(max_abs_correlation=D("0")))
 # -> reject / ['correlation_limit']  (hiçbir talep asla geçmez)
 ```
@@ -312,9 +348,13 @@ hesaplanıyor. `observed_at_ms` (metriğin gerçekte ölçüldüğü an) hiçbir
 Sağlayıcı 90 gün önce ölçülmüş bir MVRV değerini bugün yayınlarsa gözlem "taze" sayılıyor:
 
 ```python
-obs = MetricObservation(metric=MetricName.MVRV, value=D("1.5"), percentile=D("0.95"),
-                        observed_at_ms=NOW - 90*86_400_000,   # 90 günlük ölçüm
-                        available_at_ms=NOW - 1000)           # az önce yayınlandı
+obs = MetricObservation(
+    metric=MetricName.MVRV,
+    value=D("1.5"),
+    percentile=D("0.95"),
+    observed_at_ms=NOW - 90 * 86_400_000,  # 90 günlük ölçüm
+    available_at_ms=NOW - 1000,  # az önce yayınlandı
+)
 # 3 metrik ile -> regime = "overheated"   (unknown bekleniyordu)
 ```
 
@@ -360,7 +400,7 @@ zaman damgaları geçerli sayılıyor. Sağlayıcı aynı mumu iki kez döndürd
 bunu kronolojik kabul ediyor:
 
 ```python
-dup = [kline(t, t+59_999, ...), kline(t, t+59_999, ...)]   # aynı open_time
+dup = [kline(t, t + 59_999, ...), kline(t, t + 59_999, ...)]  # aynı open_time
 BinanceSpotMarketData(transport=lambda u, s: dup).fetch_candles("BTCUSDT", "1m")
 # 2 mum döndü, hata yok
 ```
@@ -420,9 +460,8 @@ tek karakterlik `"x"` referansı, otomatik değerlendirmenin ulaşabileceği en 
 yetiyor:
 
 ```python
-fake = [ReadinessEvidence(check=c, passed=True, reference="x")
-        for c in REQUIRED_READINESS_CHECKS]
-assess_production_readiness(fake).status     # ready_for_manual_review
+fake = [ReadinessEvidence(check=c, passed=True, reference="x") for c in REQUIRED_READINESS_CHECKS]
+assess_production_readiness(fake).status  # ready_for_manual_review
 ```
 
 Kanıt modelinde zaman damgası, geçerlilik süresi veya doğrulanabilir referans formatı

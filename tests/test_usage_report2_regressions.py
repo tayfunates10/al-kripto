@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Sequence
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import pytest
 
@@ -80,7 +80,9 @@ def test_y02_extreme_quantity_step_does_not_leak_decimal_invalid_operation() -> 
 
     assert len(result.fills) == 1
     assert result.final_position_quantity > 0
-    assert result.final_position_quantity % Decimal("1E-8") == 0
+    with localcontext() as context:
+        context.prec = 64
+        assert result.final_position_quantity % Decimal("1E-8") == 0
 
 
 def test_y03_unlabelled_mixed_duration_series_is_rejected() -> None:

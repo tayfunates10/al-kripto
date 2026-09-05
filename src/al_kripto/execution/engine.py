@@ -11,6 +11,8 @@ from .models import ExecutionOrder, ExecutionStatus, Fill, Side
 class TestExecutionEngine:
     """In-memory execution simulator with idempotent client order IDs."""
 
+    __test__ = False
+
     def __init__(self) -> None:
         self._orders: dict[str, ExecutionOrder] = {}
 

@@ -6,7 +6,12 @@ import re
 from dataclasses import dataclass, field
 from decimal import ROUND_DOWN, Decimal
 
-from al_kripto.backtest import BacktestEngine, BacktestResult, BacktestStrategy
+from al_kripto.backtest import (
+    BacktestEngine,
+    BacktestResult,
+    BacktestStrategy,
+    BacktestValidationError,
+)
 from al_kripto.execution import ExecutionOrder, TestExecutionEngine
 from al_kripto.execution import Side as ExecutionSide
 from al_kripto.market_data import Candle, MarketDataSource
@@ -110,6 +115,14 @@ class PaperValidationInputs:
             raise PipelineValidationError(
                 "risk and monitoring equity must describe the same point-in-time state."
             )
+        if self.monitoring_snapshot.observed_at_ms != self.decision_time_ms:
+            raise PipelineValidationError(
+                "monitoring snapshot time must equal the cycle decision time."
+            )
+        if self.readiness_as_of_ms != self.decision_time_ms:
+            raise PipelineValidationError(
+                "readiness assessment time must equal the cycle decision time."
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,12 +177,17 @@ class PaperValidationPipeline:
                 "on-chain asset must equal the cycle base asset; "
                 f"got {inputs.onchain_snapshot.asset!r}, expected {plan.base_asset!r}."
             )
+        if self._risk.kill_switch_engaged != inputs.monitoring_snapshot.kill_switch_engaged:
+            raise PipelineValidationError(
+                "risk and monitoring kill-switch states must describe the same safety state."
+            )
 
         candles = tuple(
             self._market_data.fetch_candles(
                 plan.symbol,
                 plan.interval,
                 limit=plan.candle_limit,
+                only_closed=True,
             )
         )
         if len(candles) < plan.required_samples:
@@ -177,7 +195,10 @@ class PaperValidationPipeline:
                 f"market data returned {len(candles)} candles; "
                 f"the cycle needs at least {plan.required_samples}."
             )
-        backtest_result = self._backtest.run(candles, self._strategy)
+        try:
+            backtest_result = self._backtest.run(candles, self._strategy)
+        except BacktestValidationError as exc:
+            raise PipelineValidationError(f"market data is not backtest-safe: {exc}") from exc
         smc_result = self._smc.analyze(candles)
         onchain_result = self._onchain.classify(
             inputs.onchain_snapshot,

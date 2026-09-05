@@ -90,6 +90,8 @@ class RiskEngine:
     ) -> RiskReason | None:
         if self._kill_switch.engaged:
             return RiskReason.KILL_SWITCH
+        if context.equity == _ZERO:
+            return RiskReason.ACCOUNT_DEPLETED
         if not context.reconciliation_ok:
             return RiskReason.RECONCILIATION_ERROR
         if context.market_data_age_ms > self._limits.max_market_data_age_ms:

@@ -18,8 +18,9 @@ class MarketDataSource(Protocol):
         limit: int = 500,
         start_time_ms: int | None = None,
         end_time_ms: int | None = None,
+        only_closed: bool = True,
     ) -> list[Candle]:
-        """Fetch chronologically ordered candles."""
+        """Fetch chronologically ordered candles, closed-only by default."""
 
     def fetch_trades(
         self,

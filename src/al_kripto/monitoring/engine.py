@@ -36,6 +36,22 @@ def evaluate_monitoring(
                 "Local and external state reconciliation is not healthy.",
             )
         )
+    if snapshot.equity == 0:
+        alerts.append(
+            MonitoringAlert(
+                AlertCode.ACCOUNT_DEPLETED,
+                AlertSeverity.CRITICAL,
+                "Account equity is zero; new exposure must remain blocked.",
+            )
+        )
+    if snapshot.peak_equity < snapshot.equity:
+        alerts.append(
+            MonitoringAlert(
+                AlertCode.INCONSISTENT_EQUITY_STATE,
+                AlertSeverity.CRITICAL,
+                "Reported peak equity is below current equity.",
+            )
+        )
     if snapshot.market_data_age_ms > thresholds.max_market_data_age_ms:
         alerts.append(
             MonitoringAlert(

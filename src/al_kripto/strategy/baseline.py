@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -52,11 +53,11 @@ class BaselineStrategy:
     def __init__(self, config: BaselineStrategyConfig | None = None) -> None:
         self._config = config or BaselineStrategyConfig()
 
-    def target_position(self, history: tuple[Candle, ...]) -> TargetPosition:
+    def target_position(self, history: Sequence[Candle]) -> TargetPosition:
         if len(history) < self._config.minimum_history:
             return TargetPosition.FLAT
 
-        recent_history = history[-self._config.minimum_history :]
+        recent_history = tuple(history[-self._config.minimum_history :])
         closes = tuple(candle.close for candle in recent_history)
         fast = simple_moving_average(closes[-self._config.fast_window :])
         slow = simple_moving_average(closes[-self._config.slow_window :])

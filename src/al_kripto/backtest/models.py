@@ -41,6 +41,7 @@ class BacktestConfig:
     initial_cash: Decimal = Decimal("10000")
     fee_bps: Decimal = Decimal("10")
     slippage_bps: Decimal = Decimal("5")
+    quantity_step: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not self.initial_cash.is_finite() or self.initial_cash <= _ZERO:
@@ -52,6 +53,10 @@ class BacktestConfig:
             _require_finite_non_negative(value, field_name)
             if value >= _BPS_DENOMINATOR:
                 raise BacktestValidationError(f"{field_name} must be < 10000.")
+        if self.quantity_step is not None and (
+            not self.quantity_step.is_finite() or self.quantity_step <= _ZERO
+        ):
+            raise BacktestValidationError("quantity_step must be finite and > 0 when configured.")
 
     @property
     def fee_rate(self) -> Decimal:

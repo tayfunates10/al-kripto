@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from decimal import Decimal
 from itertools import pairwise
+from typing import overload
 
 from al_kripto.market_data import Candle
 
@@ -23,6 +24,35 @@ from .strategy import BacktestStrategy
 
 _ZERO = Decimal("0")
 _ONE = Decimal("1")
+
+
+class _HistoryView(Sequence[Candle]):
+    """Immutable prefix view over a candle tuple without copying the full history."""
+
+    __slots__ = ("_series", "_stop")
+
+    def __init__(self, series: tuple[Candle, ...], stop: int) -> None:
+        self._series = series
+        self._stop = stop
+
+    def __len__(self) -> int:
+        return self._stop
+
+    @overload
+    def __getitem__(self, index: int) -> Candle: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> tuple[Candle, ...]: ...
+
+    def __getitem__(self, index: int | slice) -> Candle | tuple[Candle, ...]:
+        if isinstance(index, slice):
+            start, stop, step = index.indices(self._stop)
+            return tuple(self._series[position] for position in range(start, stop, step))
+
+        normalized = index + self._stop if index < 0 else index
+        if normalized < 0 or normalized >= self._stop:
+            raise IndexError("history index out of range")
+        return self._series[normalized]
 
 
 class BacktestEngine:
@@ -52,9 +82,8 @@ class BacktestEngine:
         equity_curve: list[EquityPoint] = []
         peak_equity = self._config.initial_cash
         max_drawdown = _ZERO
-        history: list[Candle] = []
 
-        for candle in series:
+        for index, candle in enumerate(series):
             if pending_target is not None and pending_target is not position:
                 if pending_target is TargetPosition.LONG:
                     fill, cash, quantity = self._buy(candle, cash)
@@ -84,8 +113,7 @@ class BacktestEngine:
                 )
             )
 
-            history.append(candle)
-            next_target = strategy.target_position(tuple(history))
+            next_target = strategy.target_position(_HistoryView(series, index + 1))
             if not isinstance(next_target, TargetPosition):
                 raise BacktestValidationError("Strategy must return TargetPosition.")
             pending_target = next_target

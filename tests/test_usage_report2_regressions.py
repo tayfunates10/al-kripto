@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Sequence
 from decimal import Decimal
 
 import pytest
 
 from al_kripto.backtest import BacktestConfig, BacktestEngine, BacktestValidationError, TargetPosition
-from al_kripto.market_data import Candle, MarketDataValidationError
+from al_kripto.market_data import (
+    Candle,
+    MarketDataSource,
+    MarketDataValidationError,
+    validate_symbol,
+)
+from al_kripto.onchain import OnChainRegimeConfig
+from al_kripto.readiness import ReadinessCheck, ReadinessEvidence, ReadinessValidationError
 
 
 class _AlwaysLong:
@@ -83,3 +91,34 @@ def test_y03_unlabelled_mixed_duration_series_is_rejected() -> None:
 def test_y04_interval_label_must_match_actual_candle_duration() -> None:
     with pytest.raises(MarketDataValidationError, match="interval metadata"):
         _candle(0, 3_599_999, interval="1m")
+
+
+def test_y05_consensus_cannot_exceed_minimum_metric_requirement() -> None:
+    with pytest.raises(ValueError, match="consensus_metrics"):
+        OnChainRegimeConfig(minimum_metrics=2, consensus_metrics=3)
+
+
+def test_y07_market_data_protocol_requires_closed_candle_control() -> None:
+    parameters = inspect.signature(MarketDataSource.fetch_candles).parameters
+
+    assert "only_closed" in parameters
+    assert parameters["only_closed"].default is True
+
+
+@pytest.mark.parametrize("reference", ["javascript://alert", "file:///etc/passwd"])
+def test_y08_unsafe_readiness_reference_schemes_are_rejected(reference: str) -> None:
+    with pytest.raises(ReadinessValidationError):
+        ReadinessEvidence(
+            check=ReadinessCheck.CI_GREEN,
+            passed=True,
+            reference=reference,
+            recorded_at_ms=1_000,
+            valid_until_ms=2_000,
+        )
+
+
+def test_y10_symbol_validator_is_public_api() -> None:
+    validate_symbol("BTCUSDT")
+
+    with pytest.raises(MarketDataValidationError):
+        validate_symbol("btc/usdt")

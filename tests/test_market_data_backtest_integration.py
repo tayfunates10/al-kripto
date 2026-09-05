@@ -41,6 +41,7 @@ class MarketDataBacktestIntegrationTests(unittest.TestCase):
 
         self.assertEqual(transport.calls, ["/api/v3/klines"])
         self.assertEqual(len(candles), 1)
+        self.assertEqual(candles[0].interval, "1m")
         self.assertEqual(len(result.equity_curve), 1)
         self.assertEqual(result.fills, ())
         self.assertEqual(result.final_position_quantity, 0)

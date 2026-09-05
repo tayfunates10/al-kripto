@@ -142,7 +142,9 @@ class BacktestEngine:
         raw_quantity = cash / (execution_price * (_ONE + self._config.fee_rate))
         quantity = _round_down_to_step(raw_quantity, quantity_step)
         if quantity <= _ZERO:
-            raise BacktestValidationError("Rounded quantity is zero; cash is below the quantity step.")
+            raise BacktestValidationError(
+                "Rounded quantity is zero; cash is below the quantity step."
+            )
 
         notional = quantity * execution_price
         fee = notional * self._config.fee_rate

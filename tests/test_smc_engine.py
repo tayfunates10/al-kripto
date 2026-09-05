@@ -126,6 +126,42 @@ class StructureTests(unittest.TestCase):
         self.assertEqual(bullish_block.index, 3)
         self.assertEqual(bullish_block.confirmed_by_index, 4)
 
+    def test_break_invalidates_older_levels_and_deduplicates_order_blocks(self) -> None:
+        values = (
+            ("100", "105", "99", "104"),
+            ("104", "112", "103", "111"),
+            ("111", "120", "110", "112"),
+            ("112", "114", "108", "109"),
+            ("109", "111", "105", "106"),
+            ("106", "118", "105", "117"),
+            ("117", "126", "116", "118"),
+            ("118", "120", "112", "113"),
+            ("113", "116", "110", "111"),
+            ("111", "124", "110", "123"),
+            ("123", "132", "122", "124"),
+            ("124", "126", "118", "119"),
+            ("119", "122", "116", "117"),
+            ("117", "140", "116", "139"),
+            ("139", "142", "138", "141"),
+            ("141", "144", "140", "143"),
+            ("143", "146", "142", "145"),
+            ("145", "148", "144", "147"),
+            ("147", "150", "146", "149"),
+            ("149", "152", "148", "151"),
+        )
+        candles = tuple(candle(index, *prices) for index, prices in enumerate(values))
+
+        analysis = SMCEngine().analyze(candles)
+
+        late_bullish_breaks = [
+            event.index
+            for event in analysis.breaks
+            if event.direction is Direction.BULLISH and event.index >= 13
+        ]
+        self.assertEqual(late_bullish_breaks, [13])
+        block_keys = [(block.direction, block.index) for block in analysis.order_blocks]
+        self.assertEqual(len(block_keys), len(set(block_keys)))
+
     def test_rejects_mixed_symbols(self) -> None:
         engine = SMCEngine(SMCEngineConfig(swing_strength=1))
         candles = (

@@ -30,6 +30,7 @@ class RiskReason(StrEnum):
     KILL_SWITCH = "kill_switch"
     RECONCILIATION_ERROR = "reconciliation_error"
     STALE_MARKET_DATA = "stale_market_data"
+    ACCOUNT_DEPLETED = "account_depleted"
     DAILY_LOSS_LIMIT = "daily_loss_limit"
     DRAWDOWN_LIMIT = "drawdown_limit"
     MAX_OPEN_POSITIONS = "max_open_positions"
@@ -75,7 +76,7 @@ class RiskLimits:
         _require_fraction(self.max_drawdown_fraction, "max_drawdown_fraction")
         _require_fraction(self.max_total_exposure_fraction, "max_total_exposure_fraction")
         _require_fraction(self.max_symbol_exposure_fraction, "max_symbol_exposure_fraction")
-        _require_fraction(self.max_abs_correlation, "max_abs_correlation", allow_zero=True)
+        _require_fraction(self.max_abs_correlation, "max_abs_correlation")
         if self.max_symbol_exposure_fraction > self.max_total_exposure_fraction:
             raise RiskValidationError(
                 "max_symbol_exposure_fraction cannot exceed max_total_exposure_fraction."
@@ -121,7 +122,7 @@ class RiskContext:
     reconciliation_ok: bool
 
     def __post_init__(self) -> None:
-        _require_positive(self.equity, "equity")
+        _require_non_negative(self.equity, "equity")
         _require_positive(self.start_of_day_equity, "start_of_day_equity")
         _require_positive(self.peak_equity, "peak_equity")
         _require_non_negative(self.gross_exposure, "gross_exposure")

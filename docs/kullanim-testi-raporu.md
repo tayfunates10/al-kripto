@@ -101,11 +101,29 @@ Düzeltme sonrası kalite kapıları (`073e6b7`): `ruff check`, `ruff format --c
 
 ### Doğrulamanın kapsamadıkları
 
-Bu tablo yalnızca **bu raporda listelenen bulguların** kapandığını gösterir; düzeltmelerin
-kendi başına yeni kusur getirmediğinin bağımsız bir denetimi değildir. Özellikle
-`orchestration` paketi bu rapordan sonra eklenmiştir ve hiç kullanım testinden geçmemiştir;
-ayrıca §6'daki mimari gözlemin (aşamalar arası entegrasyon testi eksikliği) ne ölçüde
-kapandığı ayrı bir değerlendirme gerektirir.
+Yukarıdaki tablo yalnızca **bu raporda listelenen bulguların** kapandığını gösterir;
+düzeltmelerin kendi başına yeni kusur getirmediğinin bağımsız bir denetimi değildir.
+
+### Orkestrasyon katmanı kullanım testi
+
+`orchestration` paketi bu rapordan sonra, B-15'i kapatmak için eklendi. Aynı yöntemle
+(7 senaryo) kullanım testinden geçirildi. Paketin kendi birim testleri (`tests/test_orchestration.py`)
+yeşil; aşağıdakiler o testlerin kapsamadığı, uçtan uca kullanımda ortaya çıkan bulgulardır.
+
+**Doğru çalışan davranışlar:** mutlu yol tam döngüyü tamamlıyor; `live_trading_enabled`
+`False` sabitli ve `FrozenInstanceError` ile korunuyor; kill-switch açıkken izleme `paused`
+dönüyor ve **hiç test emri üretilmiyor** (fail-closed).
+
+| Kod | Bulgu | Ölçüm |
+|---|---|---|
+| O-01 | **Lot/step-size disiplini yürütme yolunda uygulanmıyor.** `pipeline.py:186` emir miktarını `approved_notional / latest_price` ile hesaplıyor; B-18'de backtest'e eklenen `quantity_step` yuvarlaması bu yola uygulanmıyor. | `quantity_step=0.001` iken üretilen emir miktarı **27 ondalık basamak**: `6.269592476489028213166144201` |
+| O-02 | **Sağlayıcı plandan az mum döndürürse iç katman hatası sızıyor.** `PaperValidationPlan` yalnızca `candle_limit`'i doğruluyor, gerçekte dönen mum sayısını kimse doğrulamıyor. Hata, backtest/SMC/on-chain/risk/izleme çalıştıktan *sonra* ML katmanından geliyor. | 60 planlanıp 40 mum dönünce `PipelineValidationError` yerine `ResearchValidationError: not enough samples: need at least 54, received 40` |
+| O-03 | **Varlık–sembol eşleşmesi ön ek kontrolü.** `pipeline.py:146` `plan.symbol.startswith(asset)` kullanıyor; taban varlık eşleşmesi değil. | `asset="BT"` + `symbol="BTCUSDT"` kabul ediliyor |
+| O-04 | **`ml_split` ile `ml_metrics` birbirine bağlı değil.** Bölme mumlardan hesaplanıyor, metrikler ise çağıranın verdiği `prediction_records`'tan. İkisi arasında hiçbir bağ yok; döngüdeki OOS doğrulaması bu hâliyle dekoratif. | `train=30 val=10 test=10` üretiliyor ama metrikler tamamen dışarıdan gelen 5 kayıttan |
+
+O-01 en dikkat çekici olanı: B-18 ile getirilen lot disiplini backtest yolunda uygulanıyor,
+fakat gerçek emir nesnesini üreten yolda uygulanmıyor. Lot adımı için tek bir doğruluk
+kaynağı bulunmadığından, aynı sınıftan bir kusur katman sınırında yeniden ortaya çıkıyor.
 
 ---
 

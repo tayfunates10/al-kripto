@@ -1,9 +1,14 @@
 # Kullanım Testi ve Hata Tespit Raporu
 
 **Tarih:** 2026-09-05
-**Kapsam:** `al-kripto` deposunun tamamı (Aşama 0–11), `main` üzerindeki `713d236` commit'i
+**Denetlenen sürüm:** `main` üzerindeki `713d236` commit'i (Aşama 0–11)
 **Yöntem:** Kalite kapılarının çalıştırılması + kütüphanenin son kullanıcı gibi uçtan uca
 kullanıldığı 10 senaryo grubu (57 ayrı kontrol), rastgele girdi taramaları ve ölçekleme testleri
+
+> **Bu rapor bir denetim kaydıdır.** Aşağıdaki bölümler `713d236` sürümünde tespit edilen
+> durumu anlatır ve olduğu gibi korunmuştur. Bulguların tamamı bu dal üzerinde daha sonra
+> düzeltilmiştir; her bulgunun güncel durumu ve düzeltmenin ölçümle doğrulanması
+> [§3 Düzeltme sonrası doğrulama](#3-düzeltme-sonrası-doğrulama) bölümündedir.
 
 ---
 
@@ -13,6 +18,10 @@ Otomatik kalite kapılarının tamamı temiz geçiyor: 107 test başarılı, sat
 `ruff`, `ruff format`, `mypy --strict` ve `pip-audit` hatasız. Buna rağmen kütüphaneyi
 gerçek bir kullanıcı gibi uçtan uca kullandığımızda **6 yüksek, 8 orta ve 8 düşük öncelikli
 sorun** tespit edildi.
+
+Bulguların tamamı raporlandıktan sonra bu dal üzerinde düzeltilmiş ve her biri yeniden
+ölçülerek doğrulanmıştır — ayrıntı için [§3](#3-düzeltme-sonrası-doğrulama). Aşağıdaki
+değerlendirme denetim anındaki (`713d236`) durumu anlatır.
 
 Bulguların kök nedeni tek bir yapısal boşlukta toplanıyor: **modüller birbirine hiç
 bağlanmamış.** `onchain`, `smc`, `risk`, `execution`, `ml_research`, `monitoring` ve
@@ -53,7 +62,54 @@ Kapsamın düşük olduğu yerler doğrudan aşağıdaki bulgularla örtüşüyo
 
 ---
 
-## 3. Yüksek öncelikli bulgular
+## 3. Düzeltme sonrası doğrulama
+
+Bulgular raporlandıktan sonra aynı dal üzerinde düzeltmeler yapıldı. Aşağıdaki tablo, her
+bulgunun **güncel koda karşı yeniden ölçülmüş** durumudur: commit mesajlarına güvenilmemiş,
+her satır için raporun orijinal senaryosu/saldırısı `073e6b7` kod durumunda yeniden çalıştırılmıştır.
+
+**Sonuç: 23 bulgunun 23'ü kapandı.**
+
+| Kod | Bulgu | Ölçüm sonucu | Düzeltme |
+|---|---|---|---|
+| B-01 | SMC bayat swing kırılımları | 3 kırılım + aynı OB 3 kez → **1 kırılım, 1 OB** | `f2e7843` |
+| B-02 | Veri katmanı ↔ backtest uyumu | `run(fetch_candles(...))` doğrudan geçiyor; kapanmamış mum 0 | `f65b4fc` |
+| B-03 | İzleme `equity=0` / bayat peak | İstisna yerine `blocked` + `account_depleted` alarmı | `be928f0`, `f381f1f` |
+| B-04 | ML bölme en yeni veriyi kullanıyor mu | Test seti `950..999` — en yeni örnek dahil | `dc6da05` |
+| B-05 | Yürütme kapsülleme / terminal koruma | Emir `frozen`; iptal koruması aşılamıyor | `b24aa43`, `6ec70f3` |
+| B-06 | Backtest ölçekleme | 4× veri → 16× yerine **5,0×** süre | `90d039e` |
+| B-07 | Risk kapısı tükenmiş hesap | `equity=0` → `reject` / `account_depleted` | `abfa59e`, `9cbf357` |
+| B-08 | `max_abs_correlation=0` | Artık reddediliyor | `abfa59e` |
+| B-09 | On-chain ölçüm tazeliği | 90 günlük ölçüm → `unknown`, 3 metrik de dışlanıyor | `05df6ad` |
+| B-10 | Binance sembol doğrulaması | Geçersiz semboller istek gönderilmeden reddediliyor | `f65b4fc` |
+| B-11 | Duplike mum | `MarketDataPayloadError: candles must be strictly chronological` | `f65b4fc` |
+| B-12 | Yürütme sembol doğrulaması | Sembol deseni yürütme katmanında da uygulanıyor | `b24aa43` |
+| B-13 | `float` miktar | `ValueError: quantity must be Decimal` | `b24aa43` |
+| B-14 | Hazırlık kanıtı kalitesi | Referans formatı zorunlu, kanıt zaman sınırlı | `a00611b`, `c7a9f60` |
+| B-15 | Modül orkestrasyonu | `orchestration.PaperValidationPipeline` 8 modülü bağlıyor | `0fa530b`, `2f04ed0` |
+| B-16 | Kill-switch açıkken durum | Güvenli bekleme `paused`, gerçek arıza `blocked` — ayrışıyor | `5677f37`, `23a8471` |
+| B-17 | Interval karışımı | 1m + 1h aynı seride → `BacktestValidationError` | `e19ad45`, `088b6fe` |
+| B-18 | Lot/step-size yuvarlaması | 26 ondalık → **3 ondalık**; `quantity_step` yoksa fail-closed | `600aeed`, `088b6fe` |
+| B-19 | Açık pozisyonda `win_rate` | `0` yerine `None` (hesaplanamaz) | `b6af9d3` |
+| B-20 | Desteklenmeyen borsa | `Unsupported exchange: 'kraken'. Supported exchanges: binance.` | `448a095` |
+| B-21 | İki `Side` enum'unun eşitliği | `execution.Side.BUY == backtest.Side.BUY` artık `False` | `57c4e39`, `b6af9d3` |
+| B-22 | On-chain uzlaşı eşiği | Ayrı uzlaşı alanı eklendi | `05df6ad` |
+| B-23 | `OnChainRegimeAssessment` doğrulaması | `__post_init__` eklendi | `05df6ad` |
+
+Düzeltme sonrası kalite kapıları (`073e6b7`): `ruff check`, `ruff format --check`,
+`mypy src tests` (53 dosya, strict), `pytest` (140 test) ve `pip-audit` — tamamı temiz.
+
+### Doğrulamanın kapsamadıkları
+
+Bu tablo yalnızca **bu raporda listelenen bulguların** kapandığını gösterir; düzeltmelerin
+kendi başına yeni kusur getirmediğinin bağımsız bir denetimi değildir. Özellikle
+`orchestration` paketi bu rapordan sonra eklenmiştir ve hiç kullanım testinden geçmemiştir;
+ayrıca §6'daki mimari gözlemin (aşamalar arası entegrasyon testi eksikliği) ne ölçüde
+kapandığı ayrı bir değerlendirme gerektirir.
+
+---
+
+## 4. Yüksek öncelikli bulgular
 
 ### B-01 — SMC motoru bayat swing seviyelerini tekrar tekrar "kırıyor"
 
@@ -298,7 +354,7 @@ verir.
 
 ---
 
-## 4. Orta öncelikli bulgular
+## 5. Orta öncelikli bulgular
 
 ### B-07 — Risk kapısı hesap tükendiğinde karar veremiyor
 
@@ -476,7 +532,7 @@ için asgari bir format doğrulaması ekleyin.
 
 ---
 
-## 5. Yapısal bulgu
+## 6. Yapısal bulgu
 
 ### B-15 — Modüller birbirine bağlanmamış; orkestrasyon katmanı yok
 
@@ -515,7 +571,7 @@ orkestrasyon katmanı + entegrasyon testleri olması öneriliyor.
 
 ---
 
-## 6. Düşük öncelikli bulgular
+## 7. Düşük öncelikli bulgular
 
 | Kod | Bulgu | Dosya |
 |---|---|---|
@@ -530,7 +586,7 @@ orkestrasyon katmanı + entegrasyon testleri olması öneriliyor.
 
 ---
 
-## 7. Doğrulanan olumlu davranışlar
+## 8. Doğrulanan olumlu davranışlar
 
 Kullanım testinde aşağıdakiler beklendiği gibi çalıştı:
 
@@ -558,7 +614,10 @@ Kullanım testinde aşağıdakiler beklendiği gibi çalıştı:
 
 ---
 
-## 8. Önerilen çalışma sırası
+## 9. Önerilen çalışma sırası
+
+> Bu bölüm denetim anındaki öneridir. Sıranın tamamı bu dal üzerinde uygulanmış ve
+> [§3](#3-düzeltme-sonrası-doğrulama)'te ölçümle doğrulanmıştır; burada kayıt için korunuyor.
 
 1. **B-02** ve **B-15** birlikte: kapanmamış mum filtresi + veri→strateji→backtest→risk→izleme
    zincirini çalıştıran bir entegrasyon testi. Diğer entegrasyon hatalarını da açığa çıkarır.
@@ -570,9 +629,20 @@ Kullanım testinde aşağıdakiler beklendiği gibi çalıştı:
 6. **B-06**: backtest ölçekleme — düzeltme küçük, kazanç büyük.
 7. Kalan orta/düşük öncelikli bulgular.
 
+### Bundan sonrası
+
+Bulgular kapandığına göre sıradaki iş, düzeltmelerin kendisini denetlemek:
+
+1. `orchestration` paketi için kullanım testi — bu rapordan sonra eklendi, hiç uçtan uca
+   senaryodan geçmedi.
+2. Yeni zorunlu alanların (`quantity_step`, `Candle.interval`, zaman sınırlı hazırlık kanıtı)
+   gerçek bir paper çalışmasında ergonomik olup olmadığının ölçülmesi.
+3. Bu raporun senaryolarının kalıcı bir regresyon paketine dönüştürülmesi; şu an tek seferlik
+   betikler hâlinde ve depoda değiller.
+
 ---
 
-## 9. Test kapsamı
+## 10. Test kapsamı
 
 | Senaryo grubu | Kontrol | İçerik |
 |---|---:|---|

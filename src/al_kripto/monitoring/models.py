@@ -36,6 +36,8 @@ class AlertCode(StrEnum):
     STALE_HEARTBEAT = "stale_heartbeat"
     RECONCILIATION_ERROR = "reconciliation_error"
     KILL_SWITCH = "kill_switch"
+    ACCOUNT_DEPLETED = "account_depleted"
+    INCONSISTENT_EQUITY_STATE = "inconsistent_equity_state"
     DRAWDOWN_WARNING = "drawdown_warning"
     DRAWDOWN_LIMIT = "drawdown_limit"
     DAILY_LOSS_WARNING = "daily_loss_warning"
@@ -52,6 +54,11 @@ def _require_positive_fraction(value: Decimal, field_name: str) -> None:
 def _require_positive(value: Decimal, field_name: str) -> None:
     if not value.is_finite() or value <= _ZERO:
         raise MonitoringValidationError(f"{field_name} must be finite and > 0.")
+
+
+def _require_non_negative(value: Decimal, field_name: str) -> None:
+    if not value.is_finite() or value < _ZERO:
+        raise MonitoringValidationError(f"{field_name} must be finite and >= 0.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,11 +121,9 @@ class MonitoringSnapshot:
     def __post_init__(self) -> None:
         if self.observed_at_ms < 0:
             raise MonitoringValidationError("observed_at_ms must be >= 0.")
-        _require_positive(self.equity, "equity")
+        _require_non_negative(self.equity, "equity")
         _require_positive(self.start_of_day_equity, "start_of_day_equity")
-        _require_positive(self.peak_equity, "peak_equity")
-        if self.peak_equity < self.equity:
-            raise MonitoringValidationError("peak_equity cannot be below current equity.")
+        _require_non_negative(self.peak_equity, "peak_equity")
         if not self.realized_pnl.is_finite():
             raise MonitoringValidationError("realized_pnl must be finite.")
         if self.market_data_age_ms < 0:
@@ -145,7 +150,9 @@ class MonitoringSnapshot:
 
     @property
     def drawdown_fraction(self) -> Decimal:
-        """Non-negative drawdown from peak equity."""
+        """Non-negative drawdown from the reported peak equity."""
+        if self.peak_equity <= _ZERO or self.peak_equity < self.equity:
+            return _ZERO
         drawdown = self.peak_equity - self.equity
         if drawdown <= _ZERO:
             return _ZERO

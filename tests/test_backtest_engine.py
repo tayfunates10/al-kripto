@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from collections.abc import Sequence
 from decimal import Decimal
 
 from al_kripto.backtest import (
@@ -20,7 +21,7 @@ class SequenceStrategy:
         self._targets = targets
         self.history_lengths: list[int] = []
 
-    def target_position(self, history: tuple[Candle, ...]) -> TargetPosition:
+    def target_position(self, history: Sequence[Candle]) -> TargetPosition:
         self.history_lengths.append(len(history))
         index = min(len(history) - 1, len(self._targets) - 1)
         return self._targets[index]

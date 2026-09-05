@@ -8,7 +8,12 @@ from decimal import Decimal
 
 import pytest
 
-from al_kripto.backtest import BacktestConfig, BacktestEngine, BacktestValidationError, TargetPosition
+from al_kripto.backtest import (
+    BacktestConfig,
+    BacktestEngine,
+    BacktestValidationError,
+    TargetPosition,
+)
 from al_kripto.market_data import (
     Candle,
     MarketDataSource,

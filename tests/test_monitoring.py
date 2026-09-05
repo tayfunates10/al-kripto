@@ -53,6 +53,13 @@ class MonitoringEvaluationTests(unittest.TestCase):
         self.assertEqual(report.status, HealthStatus.HEALTHY)
         self.assertEqual(report.alerts, ())
 
+    def test_kill_switch_only_is_paused_not_faulted(self) -> None:
+        report = evaluate_monitoring(_snapshot(kill_switch_engaged=True), _thresholds())
+
+        self.assertEqual(report.status, HealthStatus.PAUSED)
+        self.assertEqual(tuple(alert.code for alert in report.alerts), (AlertCode.KILL_SWITCH,))
+        self.assertEqual(report.alerts[0].severity.value, "info")
+
     def test_stale_market_data_blocks_health(self) -> None:
         report = evaluate_monitoring(
             _snapshot(market_data_age_ms=5_001),
@@ -62,7 +69,7 @@ class MonitoringEvaluationTests(unittest.TestCase):
         self.assertEqual(report.status, HealthStatus.BLOCKED)
         self.assertIn(AlertCode.STALE_MARKET_DATA, tuple(alert.code for alert in report.alerts))
 
-    def test_reconciliation_and_kill_switch_are_critical(self) -> None:
+    def test_reconciliation_fault_overrides_kill_switch_pause(self) -> None:
         report = evaluate_monitoring(
             _snapshot(reconciliation_ok=False, kill_switch_engaged=True),
             _thresholds(),

@@ -5,13 +5,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from decimal import Decimal
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 _SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{5,20}$")
 _ZERO = Decimal("0")
 
 
-class Side(StrEnum):
+class Side(Enum):
+    """Execution-engine side; intentionally not string-comparable across domains."""
+
     BUY = "buy"
     SELL = "sell"
 

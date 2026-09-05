@@ -189,7 +189,9 @@ class MonitoringReport:
         if self.status is HealthStatus.BLOCKED and not has_critical:
             raise MonitoringValidationError("blocked reports require a critical alert.")
         if self.status is HealthStatus.DEGRADED and (has_critical or not has_warning):
-            raise MonitoringValidationError("degraded reports require warnings and no critical alert.")
+            raise MonitoringValidationError(
+                "degraded reports require warnings and no critical alert."
+            )
         if self.status is HealthStatus.PAUSED and (
             has_critical or has_warning or not has_kill_switch
         ):

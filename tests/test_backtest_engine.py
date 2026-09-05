@@ -130,7 +130,7 @@ class BacktestEngineTests(unittest.TestCase):
 
         self.assertEqual(result.fills, ())
         self.assertEqual(result.final_equity, BacktestConfig().initial_cash)
-        self.assertEqual(result.win_rate, Decimal("0"))
+        self.assertIsNone(result.win_rate)
 
     def test_rejects_mixed_symbols(self) -> None:
         candles = (

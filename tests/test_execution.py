@@ -36,11 +36,13 @@ class TestExecutionEngineTests(unittest.TestCase):
             side=Side.BUY,
             quantity=Decimal("1"),
         )
+        status_field = "status"
+        quantity_field = "quantity"
 
         with self.assertRaises(FrozenInstanceError):
-            setattr(order, "status", ExecutionStatus.FILLED)
+            setattr(order, status_field, ExecutionStatus.FILLED)
         with self.assertRaises(FrozenInstanceError):
-            setattr(order, "quantity", Decimal("999999"))
+            setattr(order, quantity_field, Decimal("999999"))
 
         stored = self.engine.get("immutable-1")
         self.assertEqual(stored.status, ExecutionStatus.NEW)

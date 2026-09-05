@@ -222,7 +222,11 @@ def _plan() -> PaperValidationPlan:
     )
 
 
-def _pipeline(source: _FakeMarketData, *, kill_switch_engaged: bool = False) -> PaperValidationPipeline:
+def _pipeline(
+    source: _FakeMarketData,
+    *,
+    kill_switch_engaged: bool = False,
+) -> PaperValidationPipeline:
     return PaperValidationPipeline(
         market_data=source,
         backtest=BacktestEngine(clock_ms=lambda: 1_000_000),

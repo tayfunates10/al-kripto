@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from collections.abc import Sequence
 from decimal import Decimal
 
 from al_kripto.backtest import (
@@ -20,7 +21,7 @@ class SequenceStrategy:
         self._targets = targets
         self.history_lengths: list[int] = []
 
-    def target_position(self, history: tuple[Candle, ...]) -> TargetPosition:
+    def target_position(self, history: Sequence[Candle]) -> TargetPosition:
         self.history_lengths.append(len(history))
         index = min(len(history) - 1, len(self._targets) - 1)
         return self._targets[index]
@@ -32,6 +33,7 @@ def make_candle(
     close_price: str,
     *,
     symbol: str = "BTCUSDT",
+    interval: str | None = None,
 ) -> Candle:
     opened = Decimal(open_price)
     closed = Decimal(close_price)
@@ -50,6 +52,7 @@ def make_candle(
         trade_count=10,
         taker_buy_base_volume=Decimal("4"),
         taker_buy_quote_volume=Decimal("400"),
+        interval=interval,
     )
 
 
@@ -65,6 +68,7 @@ class BacktestEngineTests(unittest.TestCase):
                 initial_cash=Decimal("1000"),
                 fee_bps=Decimal("0"),
                 slippage_bps=Decimal("0"),
+                quantity_step=Decimal("0.0001"),
             )
         ).run(candles, strategy)
 
@@ -86,6 +90,7 @@ class BacktestEngineTests(unittest.TestCase):
                 initial_cash=Decimal("1000"),
                 fee_bps=Decimal("0"),
                 slippage_bps=Decimal("0"),
+                quantity_step=Decimal("0.0001"),
             )
         ).run(candles, SequenceStrategy(targets))
         costly = BacktestEngine(
@@ -93,6 +98,7 @@ class BacktestEngineTests(unittest.TestCase):
                 initial_cash=Decimal("1000"),
                 fee_bps=Decimal("10"),
                 slippage_bps=Decimal("10"),
+                quantity_step=Decimal("0.0001"),
             )
         ).run(candles, SequenceStrategy(targets))
 
@@ -113,12 +119,13 @@ class BacktestEngineTests(unittest.TestCase):
                 initial_cash=Decimal("1000"),
                 fee_bps=Decimal("0"),
                 slippage_bps=Decimal("0"),
+                quantity_step=Decimal("0.0001"),
             )
         ).run(candles, strategy)
 
         self.assertEqual(result.max_drawdown, Decimal("0.2"))
-        self.assertEqual(result.equity_curve[-1].equity, Decimal("800"))
-        self.assertEqual(result.final_position_quantity, Decimal("10"))
+        self.assertEqual(result.equity_curve[-1].equity, Decimal("800.0000"))
+        self.assertEqual(result.final_position_quantity, Decimal("10.0000"))
 
     def test_flat_strategy_never_trades(self) -> None:
         candles = (make_candle(0, "100", "101"), make_candle(1, "101", "102"))
@@ -129,7 +136,34 @@ class BacktestEngineTests(unittest.TestCase):
 
         self.assertEqual(result.fills, ())
         self.assertEqual(result.final_equity, BacktestConfig().initial_cash)
-        self.assertEqual(result.win_rate, Decimal("0"))
+        self.assertIsNone(result.win_rate)
+
+    def test_opening_position_requires_quantity_step(self) -> None:
+        candles = (make_candle(0, "100", "100"), make_candle(1, "100", "100"))
+
+        with self.assertRaisesRegex(BacktestValidationError, "quantity_step"):
+            BacktestEngine(
+                BacktestConfig(
+                    initial_cash=Decimal("1000"),
+                    fee_bps=Decimal("0"),
+                    slippage_bps=Decimal("0"),
+                )
+            ).run(candles, SequenceStrategy((TargetPosition.LONG, TargetPosition.LONG)))
+
+    def test_quantity_is_rounded_down_to_configured_step(self) -> None:
+        candles = (make_candle(0, "333", "333"), make_candle(1, "333", "333"))
+        result = BacktestEngine(
+            BacktestConfig(
+                initial_cash=Decimal("1000"),
+                fee_bps=Decimal("0"),
+                slippage_bps=Decimal("0"),
+                quantity_step=Decimal("0.1"),
+            )
+        ).run(candles, SequenceStrategy((TargetPosition.LONG, TargetPosition.LONG)))
+
+        self.assertEqual(result.final_position_quantity, Decimal("3.0"))
+        self.assertEqual(result.final_cash, Decimal("1.0"))
+        self.assertEqual(result.fills[0].quantity, Decimal("3.0"))
 
     def test_rejects_mixed_symbols(self) -> None:
         candles = (
@@ -138,6 +172,15 @@ class BacktestEngineTests(unittest.TestCase):
         )
 
         with self.assertRaises(BacktestValidationError):
+            BacktestEngine().run(candles, SequenceStrategy((TargetPosition.FLAT,)))
+
+    def test_rejects_mixed_interval_metadata(self) -> None:
+        candles = (
+            make_candle(0, "100", "101", interval="1m"),
+            make_candle(1, "101", "102", interval="1h"),
+        )
+
+        with self.assertRaisesRegex(BacktestValidationError, "same interval"):
             BacktestEngine().run(candles, SequenceStrategy((TargetPosition.FLAT,)))
 
     def test_rejects_overlapping_candles(self) -> None:
@@ -192,6 +235,8 @@ class BacktestEngineTests(unittest.TestCase):
             BacktestConfig(fee_bps=Decimal("10000"))
         with self.assertRaises(BacktestValidationError):
             BacktestConfig(slippage_bps=Decimal("-1"))
+        with self.assertRaises(BacktestValidationError):
+            BacktestConfig(quantity_step=Decimal("0"))
 
 
 if __name__ == "__main__":

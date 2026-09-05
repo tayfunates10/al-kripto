@@ -121,6 +121,7 @@ class SMCEngine:
         sweeps: list[LiquiditySweep] = []
         breaks: list[StructureBreak] = []
         blocks: list[OrderBlock] = []
+        emitted_blocks: set[tuple[Direction, int]] = set()
         last_break_direction: Direction | None = None
 
         for index, candle in enumerate(candles):
@@ -165,7 +166,11 @@ class SMCEngine:
                         event_time_ms=candle.close_time_ms,
                     )
                 )
-                broken_highs.add(swing_high.index)
+                broken_highs.update(
+                    swing.index
+                    for swing in highs
+                    if swing.confirmed_index < index and swing.price <= swing_high.price
+                )
                 last_break_direction = Direction.BULLISH
                 block = _find_order_block(
                     candles,
@@ -174,7 +179,10 @@ class SMCEngine:
                     lookback=self._config.order_block_lookback,
                 )
                 if block is not None:
-                    blocks.append(block)
+                    block_key = (block.direction, block.index)
+                    if block_key not in emitted_blocks:
+                        blocks.append(block)
+                        emitted_blocks.add(block_key)
 
             if swing_low is not None and candle.close < swing_low.price:
                 break_kind = _break_kind(last_break_direction, Direction.BEARISH)
@@ -188,7 +196,11 @@ class SMCEngine:
                         event_time_ms=candle.close_time_ms,
                     )
                 )
-                broken_lows.add(swing_low.index)
+                broken_lows.update(
+                    swing.index
+                    for swing in lows
+                    if swing.confirmed_index < index and swing.price >= swing_low.price
+                )
                 last_break_direction = Direction.BEARISH
                 block = _find_order_block(
                     candles,
@@ -197,7 +209,10 @@ class SMCEngine:
                     lookback=self._config.order_block_lookback,
                 )
                 if block is not None:
-                    blocks.append(block)
+                    block_key = (block.direction, block.index)
+                    if block_key not in emitted_blocks:
+                        blocks.append(block)
+                        emitted_blocks.add(block_key)
 
         return SMCAnalysis(
             swings=swings,

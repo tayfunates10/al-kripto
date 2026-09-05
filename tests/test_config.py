@@ -37,6 +37,10 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             Settings(symbols=())
 
+    def test_unsupported_exchange_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ConfigurationError, "Unsupported exchange"):
+            Settings.from_env({"AL_KRIPTO_EXCHANGE": "kraken"})
+
     def test_partial_credentials_are_rejected(self) -> None:
         with self.assertRaises(ConfigurationError):
             Settings.from_env({"AL_KRIPTO_API_KEY": "key-only"})

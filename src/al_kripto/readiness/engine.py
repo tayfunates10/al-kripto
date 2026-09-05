@@ -16,21 +16,33 @@ from .models import (
 
 def assess_production_readiness(
     evidence: Sequence[ReadinessEvidence],
+    *,
+    as_of_ms: int,
 ) -> ReadinessAssessment:
-    """Assess technical evidence and stop at human review; never enable live trading."""
+    """Assess current technical evidence and stop at human review; never enable live trading."""
+    if as_of_ms < 0:
+        raise ReadinessValidationError("as_of_ms must be >= 0.")
+
     by_check: dict[ReadinessCheck, ReadinessEvidence] = {}
     for item in evidence:
         if item.check in by_check:
             raise ReadinessValidationError(f"duplicate readiness evidence: {item.check.value}")
         by_check[item.check] = item
 
+    def valid_and_passed(check: ReadinessCheck) -> bool:
+        item = by_check[check]
+        time_valid = item.recorded_at_ms <= as_of_ms <= item.valid_until_ms
+        return item.passed and time_valid
+
     passed_checks = tuple(
-        check for check in REQUIRED_READINESS_CHECKS if check in by_check and by_check[check].passed
+        check
+        for check in REQUIRED_READINESS_CHECKS
+        if check in by_check and valid_and_passed(check)
     )
     failed_checks = tuple(
         check
         for check in REQUIRED_READINESS_CHECKS
-        if check in by_check and not by_check[check].passed
+        if check in by_check and not valid_and_passed(check)
     )
     missing_checks = tuple(check for check in REQUIRED_READINESS_CHECKS if check not in by_check)
 
@@ -45,6 +57,7 @@ def assess_production_readiness(
 
     return ReadinessAssessment(
         status=status,
+        assessed_at_ms=as_of_ms,
         passed_checks=passed_checks,
         failed_checks=failed_checks,
         missing_checks=missing_checks,
@@ -56,6 +69,7 @@ def readiness_payload(assessment: ReadinessAssessment) -> dict[str, object]:
     """Return a JSON-safe audit payload that explicitly leaves live trading disabled."""
     return {
         "status": assessment.status.value,
+        "assessed_at_ms": assessment.assessed_at_ms,
         "live_trading_enabled": False,
         "next_action": (
             "manual_security_review"
@@ -70,6 +84,8 @@ def readiness_payload(assessment: ReadinessAssessment) -> dict[str, object]:
                 "check": item.check.value,
                 "passed": item.passed,
                 "reference": item.reference,
+                "recorded_at_ms": item.recorded_at_ms,
+                "valid_until_ms": item.valid_until_ms,
             }
             for item in assessment.evidence
         ],

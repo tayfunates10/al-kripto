@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 _SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{5,20}$")
+_INTERVAL_PATTERN = re.compile(r"^[1-9]\d*[smhdwM]$")
 
 
 class MarketDataValidationError(ValueError):
@@ -30,7 +31,7 @@ def _require_non_negative(value: Decimal, field_name: str) -> None:
 
 @dataclass(frozen=True, slots=True)
 class Candle:
-    """One closed or in-progress OHLCV candle."""
+    """One closed or in-progress OHLCV candle with optional source interval metadata."""
 
     symbol: str
     open_time_ms: int
@@ -44,9 +45,12 @@ class Candle:
     trade_count: int
     taker_buy_base_volume: Decimal
     taker_buy_quote_volume: Decimal
+    interval: str | None = None
 
     def __post_init__(self) -> None:
         _validate_symbol(self.symbol)
+        if self.interval is not None and not _INTERVAL_PATTERN.fullmatch(self.interval):
+            raise MarketDataValidationError(f"Invalid candle interval: {self.interval!r}")
         if self.open_time_ms < 0 or self.close_time_ms < self.open_time_ms:
             raise MarketDataValidationError("Candle timestamps are invalid.")
 

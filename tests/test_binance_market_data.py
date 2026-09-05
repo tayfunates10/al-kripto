@@ -6,7 +6,11 @@ import unittest
 from decimal import Decimal
 from urllib.parse import parse_qs, urlparse
 
-from al_kripto.market_data import BinanceSpotMarketData, MarketDataPayloadError
+from al_kripto.market_data import (
+    BinanceSpotMarketData,
+    MarketDataPayloadError,
+    MarketDataValidationError,
+)
 
 
 class FakeTransport:
@@ -42,7 +46,7 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
                 ]
             }
         )
-        source = BinanceSpotMarketData(transport=transport)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 3000)
 
         candles = source.fetch_candles(
             "BTCUSDT",
@@ -59,6 +63,36 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
         self.assertEqual(query["limit"], ["10"])
         self.assertEqual(query["startTime"], ["1000"])
         self.assertEqual(query["endTime"], ["2000"])
+
+    def test_filters_in_progress_candle_by_default(self) -> None:
+        transport = FakeTransport(
+            {
+                "/api/v3/klines": [
+                    [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"],
+                    [2000, "105", "111", "104", "110", "2", 2999, "220", 8, "0.8", "88", "0"],
+                ]
+            }
+        )
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 2500)
+
+        candles = source.fetch_candles("BTCUSDT", "1m")
+
+        self.assertEqual([candle.open_time_ms for candle in candles], [1000])
+
+    def test_can_return_in_progress_candle_when_explicitly_requested(self) -> None:
+        transport = FakeTransport(
+            {
+                "/api/v3/klines": [
+                    [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"],
+                    [2000, "105", "111", "104", "110", "2", 2999, "220", 8, "0.8", "88", "0"],
+                ]
+            }
+        )
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 2500)
+
+        candles = source.fetch_candles("BTCUSDT", "1m", only_closed=False)
+
+        self.assertEqual([candle.open_time_ms for candle in candles], [1000, 2000])
 
     def test_parses_aggregate_trades(self) -> None:
         transport = FakeTransport(
@@ -99,10 +133,32 @@ class BinanceSpotMarketDataTests(unittest.TestCase):
                 ]
             }
         )
-        source = BinanceSpotMarketData(transport=transport)
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 4000)
 
         with self.assertRaises(MarketDataPayloadError):
             source.fetch_candles("BTCUSDT", "1m")
+
+    def test_rejects_duplicate_candle_open_times(self) -> None:
+        duplicate = [1000, "100", "110", "95", "105", "2", 1999, "210", 8, "0.8", "84", "0"]
+        transport = FakeTransport({"/api/v3/klines": [duplicate, duplicate.copy()]})
+        source = BinanceSpotMarketData(transport=transport, clock_ms=lambda: 4000)
+
+        with self.assertRaises(MarketDataPayloadError):
+            source.fetch_candles("BTCUSDT", "1m")
+
+    def test_rejects_invalid_symbol_before_transport(self) -> None:
+        transport = FakeTransport({})
+        source = BinanceSpotMarketData(transport=transport)
+
+        for fetch in (
+            lambda: source.fetch_candles("btcusdt", "1m"),
+            lambda: source.fetch_trades(""),
+            lambda: source.fetch_order_book("../../etc/passwd"),
+        ):
+            with self.subTest(fetch=fetch):
+                with self.assertRaises(MarketDataValidationError):
+                    fetch()
+        self.assertEqual(transport.calls, [])
 
     def test_rejects_malformed_order_book(self) -> None:
         transport = FakeTransport(

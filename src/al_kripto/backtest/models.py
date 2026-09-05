@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 _BPS_DENOMINATOR = Decimal("10000")
 _ZERO = Decimal("0")
@@ -22,8 +22,8 @@ class TargetPosition(StrEnum):
     LONG = "long"
 
 
-class Side(StrEnum):
-    """Execution side for a simulated fill."""
+class Side(Enum):
+    """Execution side for a simulated backtest fill; intentionally not string-comparable."""
 
     BUY = "buy"
     SELL = "sell"
@@ -41,6 +41,7 @@ class BacktestConfig:
     initial_cash: Decimal = Decimal("10000")
     fee_bps: Decimal = Decimal("10")
     slippage_bps: Decimal = Decimal("5")
+    quantity_step: Decimal | None = None
 
     def __post_init__(self) -> None:
         if not self.initial_cash.is_finite() or self.initial_cash <= _ZERO:
@@ -52,6 +53,10 @@ class BacktestConfig:
             _require_finite_non_negative(value, field_name)
             if value >= _BPS_DENOMINATOR:
                 raise BacktestValidationError(f"{field_name} must be < 10000.")
+        if self.quantity_step is not None and (
+            not self.quantity_step.is_finite() or self.quantity_step <= _ZERO
+        ):
+            raise BacktestValidationError("quantity_step must be finite and > 0 when configured.")
 
     @property
     def fee_rate(self) -> Decimal:
@@ -142,8 +147,9 @@ class BacktestResult:
         return (self.final_equity / self.initial_cash) - _ONE
 
     @property
-    def win_rate(self) -> Decimal:
+    def win_rate(self) -> Decimal | None:
+        """Completed-trade win rate, or None when no round trip has completed."""
         if not self.round_trips:
-            return _ZERO
+            return None
         wins = sum(1 for trade in self.round_trips if trade.net_pnl > _ZERO)
         return Decimal(wins) / Decimal(len(self.round_trips))

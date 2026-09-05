@@ -24,8 +24,8 @@ def evaluate_monitoring(
         alerts.append(
             MonitoringAlert(
                 AlertCode.KILL_SWITCH,
-                AlertSeverity.CRITICAL,
-                "Kill-switch is engaged; exposure increases should remain blocked.",
+                AlertSeverity.INFO,
+                "Kill-switch is engaged; exposure increases are intentionally paused.",
             )
         )
     if not snapshot.reconciliation_ok:
@@ -34,6 +34,22 @@ def evaluate_monitoring(
                 AlertCode.RECONCILIATION_ERROR,
                 AlertSeverity.CRITICAL,
                 "Local and external state reconciliation is not healthy.",
+            )
+        )
+    if snapshot.equity == 0:
+        alerts.append(
+            MonitoringAlert(
+                AlertCode.ACCOUNT_DEPLETED,
+                AlertSeverity.CRITICAL,
+                "Account equity is zero; new exposure must remain blocked.",
+            )
+        )
+    if snapshot.peak_equity < snapshot.equity:
+        alerts.append(
+            MonitoringAlert(
+                AlertCode.INCONSISTENT_EQUITY_STATE,
+                AlertSeverity.CRITICAL,
+                "Reported peak equity is below current equity.",
             )
         )
     if snapshot.market_data_age_ms > thresholds.max_market_data_age_ms:
@@ -108,8 +124,10 @@ def evaluate_monitoring(
 
     if any(alert.severity is AlertSeverity.CRITICAL for alert in alerts):
         status = HealthStatus.BLOCKED
-    elif alerts:
+    elif any(alert.severity is AlertSeverity.WARNING for alert in alerts):
         status = HealthStatus.DEGRADED
+    elif alerts:
+        status = HealthStatus.PAUSED
     else:
         status = HealthStatus.HEALTHY
 

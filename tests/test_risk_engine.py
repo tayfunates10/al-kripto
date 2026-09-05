@@ -73,6 +73,12 @@ class RiskEngineBlockingTests(unittest.TestCase):
         self.kill_switch.engage()
         self.assert_rejected(RiskReason.KILL_SWITCH, context())
 
+    def test_depleted_account_fails_closed_with_explicit_reason(self) -> None:
+        self.assert_rejected(
+            RiskReason.ACCOUNT_DEPLETED,
+            context(equity=Decimal("0")),
+        )
+
     def test_reconciliation_error_fails_closed(self) -> None:
         self.assert_rejected(
             RiskReason.RECONCILIATION_ERROR,
@@ -182,6 +188,19 @@ class RiskValidationTests(unittest.TestCase):
                 max_total_exposure_fraction=Decimal("0.80"),
                 max_symbol_exposure_fraction=Decimal("0.40"),
                 max_abs_correlation=Decimal("0.80"),
+                max_open_positions=4,
+                max_market_data_age_ms=5_000,
+            )
+
+    def test_zero_correlation_limit_is_rejected(self) -> None:
+        with self.assertRaises(RiskValidationError):
+            RiskLimits(
+                max_risk_per_trade_fraction=Decimal("0.01"),
+                max_daily_loss_fraction=Decimal("0.05"),
+                max_drawdown_fraction=Decimal("0.10"),
+                max_total_exposure_fraction=Decimal("0.80"),
+                max_symbol_exposure_fraction=Decimal("0.40"),
+                max_abs_correlation=Decimal("0"),
                 max_open_positions=4,
                 max_market_data_age_ms=5_000,
             )

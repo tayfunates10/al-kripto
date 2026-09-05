@@ -123,7 +123,7 @@ class BinanceSpotMarketData:
             },
         )
         rows = _as_list(payload, "klines")
-        candles = [_parse_candle(symbol, row) for row in rows]
+        candles = [_parse_candle(symbol, interval, row) for row in rows]
         _ensure_chronological(
             candles,
             key=lambda item: item.open_time_ms,
@@ -242,7 +242,7 @@ def _as_bool(value: object, field_name: str) -> bool:
     return value
 
 
-def _parse_candle(symbol: str, payload: object) -> Candle:
+def _parse_candle(symbol: str, interval: str, payload: object) -> Candle:
     row = _as_list(payload, "kline row")
     if len(row) < 11:
         raise MarketDataPayloadError("Kline row must contain at least 11 fields.")
@@ -259,6 +259,7 @@ def _parse_candle(symbol: str, payload: object) -> Candle:
         trade_count=_as_int(row[8], "trade count"),
         taker_buy_base_volume=_as_decimal(row[9], "taker buy base volume"),
         taker_buy_quote_volume=_as_decimal(row[10], "taker buy quote volume"),
+        interval=interval,
     )
 
 

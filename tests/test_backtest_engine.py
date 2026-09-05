@@ -175,13 +175,25 @@ class BacktestEngineTests(unittest.TestCase):
             BacktestEngine().run(candles, SequenceStrategy((TargetPosition.FLAT,)))
 
     def test_rejects_mixed_interval_metadata(self) -> None:
-        candles = (
-            make_candle(0, "100", "101", interval="1m"),
-            make_candle(1, "101", "102", interval="1h"),
+        first = make_candle(0, "100", "101", interval="1m")
+        second = Candle(
+            symbol="BTCUSDT",
+            open_time_ms=60_000,
+            close_time_ms=3_659_999,
+            open=Decimal("101"),
+            high=Decimal("103"),
+            low=Decimal("100"),
+            close=Decimal("102"),
+            volume=Decimal("10"),
+            quote_volume=Decimal("1000"),
+            trade_count=10,
+            taker_buy_base_volume=Decimal("4"),
+            taker_buy_quote_volume=Decimal("400"),
+            interval="1h",
         )
 
         with self.assertRaisesRegex(BacktestValidationError, "same interval"):
-            BacktestEngine().run(candles, SequenceStrategy((TargetPosition.FLAT,)))
+            BacktestEngine().run((first, second), SequenceStrategy((TargetPosition.FLAT,)))
 
     def test_rejects_overlapping_candles(self) -> None:
         first = make_candle(0, "100", "101")

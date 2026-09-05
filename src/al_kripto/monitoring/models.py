@@ -18,6 +18,7 @@ class HealthStatus(StrEnum):
     """Overall read-only health state."""
 
     HEALTHY = "healthy"
+    PAUSED = "paused"
     DEGRADED = "degraded"
     BLOCKED = "blocked"
 
@@ -25,6 +26,7 @@ class HealthStatus(StrEnum):
 class AlertSeverity(StrEnum):
     """Monitoring alert severity."""
 
+    INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
 
@@ -182,7 +184,17 @@ class MonitoringReport:
 
     def __post_init__(self) -> None:
         has_critical = any(alert.severity is AlertSeverity.CRITICAL for alert in self.alerts)
+        has_warning = any(alert.severity is AlertSeverity.WARNING for alert in self.alerts)
+        has_kill_switch = any(alert.code is AlertCode.KILL_SWITCH for alert in self.alerts)
         if self.status is HealthStatus.BLOCKED and not has_critical:
             raise MonitoringValidationError("blocked reports require a critical alert.")
+        if self.status is HealthStatus.DEGRADED and (has_critical or not has_warning):
+            raise MonitoringValidationError("degraded reports require warnings and no critical alert.")
+        if self.status is HealthStatus.PAUSED and (
+            has_critical or has_warning or not has_kill_switch
+        ):
+            raise MonitoringValidationError(
+                "paused reports require only non-fault informational kill-switch state."
+            )
         if self.status is HealthStatus.HEALTHY and self.alerts:
             raise MonitoringValidationError("healthy reports cannot contain alerts.")

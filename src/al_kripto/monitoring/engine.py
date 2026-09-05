@@ -24,8 +24,8 @@ def evaluate_monitoring(
         alerts.append(
             MonitoringAlert(
                 AlertCode.KILL_SWITCH,
-                AlertSeverity.CRITICAL,
-                "Kill-switch is engaged; exposure increases should remain blocked.",
+                AlertSeverity.INFO,
+                "Kill-switch is engaged; exposure increases are intentionally paused.",
             )
         )
     if not snapshot.reconciliation_ok:
@@ -124,8 +124,10 @@ def evaluate_monitoring(
 
     if any(alert.severity is AlertSeverity.CRITICAL for alert in alerts):
         status = HealthStatus.BLOCKED
-    elif alerts:
+    elif any(alert.severity is AlertSeverity.WARNING for alert in alerts):
         status = HealthStatus.DEGRADED
+    elif alerts:
+        status = HealthStatus.PAUSED
     else:
         status = HealthStatus.HEALTHY
 

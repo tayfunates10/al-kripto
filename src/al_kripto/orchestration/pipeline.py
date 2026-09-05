@@ -214,12 +214,18 @@ class PaperValidationPipeline:
                 raise PipelineValidationError(
                     "approved notional is below one quantity step; no valid order can be placed."
                 )
-            test_order = self._execution.submit(
-                client_order_id=plan.client_order_id,
-                symbol=plan.symbol,
-                side=ExecutionSide.BUY,
-                quantity=quantity,
-            )
+            cycle_order_id = f"{plan.client_order_id}-{inputs.decision_time_ms}"
+            try:
+                test_order = self._execution.submit(
+                    client_order_id=cycle_order_id,
+                    symbol=plan.symbol,
+                    side=ExecutionSide.BUY,
+                    quantity=quantity,
+                )
+            except ValueError as exc:
+                raise PipelineValidationError(
+                    f"test execution rejected cycle order {cycle_order_id!r}: {exc}"
+                ) from exc
 
         return PaperValidationCycle(
             candles=candles,

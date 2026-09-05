@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from collections.abc import Sequence
 from urllib.parse import urlparse
 
 from al_kripto.backtest import BacktestEngine, TargetPosition
@@ -10,7 +11,7 @@ from al_kripto.market_data import BinanceSpotMarketData, Candle
 
 
 class _FlatStrategy:
-    def target_position(self, history: tuple[Candle, ...]) -> TargetPosition:
+    def target_position(self, history: Sequence[Candle]) -> TargetPosition:
         return TargetPosition.FLAT
 
 

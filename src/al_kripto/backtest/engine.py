@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Iterable, Sequence
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 from itertools import pairwise
 from typing import overload
 
@@ -132,10 +132,21 @@ class BacktestEngine:
         )
 
     def _buy(self, candle: Candle, cash: Decimal) -> tuple[Fill, Decimal, Decimal]:
+        quantity_step = self._config.quantity_step
+        if quantity_step is None:
+            raise BacktestValidationError(
+                "quantity_step must be configured before a backtest can open a position."
+            )
+
         execution_price = candle.open * (_ONE + self._config.slippage_rate)
-        quantity = cash / (execution_price * (_ONE + self._config.fee_rate))
+        raw_quantity = cash / (execution_price * (_ONE + self._config.fee_rate))
+        quantity = _round_down_to_step(raw_quantity, quantity_step)
+        if quantity <= _ZERO:
+            raise BacktestValidationError("Rounded quantity is zero; cash is below the quantity step.")
+
         notional = quantity * execution_price
         fee = notional * self._config.fee_rate
+        spent = notional + fee
         fill = Fill(
             side=Side.BUY,
             timestamp_ms=candle.open_time_ms,
@@ -145,7 +156,7 @@ class BacktestEngine:
             notional=notional,
             fee=fee,
         )
-        return fill, _ZERO, quantity
+        return fill, cash - spent, quantity
 
     def _sell(self, candle: Candle, cash: Decimal, quantity: Decimal) -> tuple[Fill, Decimal]:
         execution_price = candle.open * (_ONE - self._config.slippage_rate)
@@ -177,8 +188,11 @@ class BacktestEngine:
         if not series:
             raise BacktestValidationError("Backtest requires at least one candle.")
         symbol = series[0].symbol
+        interval = series[0].interval
         if any(candle.symbol != symbol for candle in series):
             raise BacktestValidationError("All candles must use the same symbol.")
+        if any(candle.interval != interval for candle in series):
+            raise BacktestValidationError("All candles must use the same interval metadata.")
         if any(
             current.open_time_ms <= previous.close_time_ms for previous, current in pairwise(series)
         ):
@@ -191,3 +205,8 @@ class BacktestEngine:
             raise BacktestValidationError(
                 "Backtest requires fully closed candles; in-progress candles are not allowed."
             )
+
+
+def _round_down_to_step(quantity: Decimal, step: Decimal) -> Decimal:
+    units = (quantity / step).to_integral_value(rounding=ROUND_DOWN)
+    return units * step

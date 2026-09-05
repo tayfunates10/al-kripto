@@ -20,12 +20,14 @@ class OnChainRegime(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class OnChainRegimeConfig:
-    """Thresholds for percentile-consensus classification."""
+    """Thresholds for point-in-time freshness and percentile-consensus classification."""
 
     low_percentile: Decimal = Decimal("0.20")
     high_percentile: Decimal = Decimal("0.80")
     minimum_metrics: int = 3
+    consensus_metrics: int = 3
     max_age_ms: int = 172_800_000
+    max_observation_age_ms: int = 172_800_000
 
     def __post_init__(self) -> None:
         if not self.low_percentile.is_finite() or not self.high_percentile.is_finite():
@@ -34,8 +36,12 @@ class OnChainRegimeConfig:
             raise ValueError("Percentile thresholds must satisfy 0 <= low < high <= 1.")
         if not 1 <= self.minimum_metrics <= len(MetricName):
             raise ValueError("minimum_metrics must be between 1 and the supported metric count.")
+        if not 1 <= self.consensus_metrics <= len(MetricName):
+            raise ValueError("consensus_metrics must be between 1 and the supported metric count.")
         if self.max_age_ms <= 0:
             raise ValueError("max_age_ms must be > 0.")
+        if self.max_observation_age_ms <= 0:
+            raise ValueError("max_observation_age_ms must be > 0.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +52,16 @@ class OnChainRegimeAssessment:
     decision_time_ms: int
     usable_metrics: tuple[MetricName, ...]
     excluded_metrics: tuple[MetricName, ...]
+
+    def __post_init__(self) -> None:
+        if self.decision_time_ms < 0:
+            raise ValueError("decision_time_ms must be >= 0.")
+        if len(set(self.usable_metrics)) != len(self.usable_metrics):
+            raise ValueError("usable_metrics must not contain duplicates.")
+        if len(set(self.excluded_metrics)) != len(self.excluded_metrics):
+            raise ValueError("excluded_metrics must not contain duplicates.")
+        if set(self.usable_metrics) & set(self.excluded_metrics):
+            raise ValueError("usable_metrics and excluded_metrics must not overlap.")
 
 
 class OnChainRegimeEngine:
@@ -69,8 +85,12 @@ class OnChainRegimeEngine:
             if observation.available_at_ms > decision_time_ms:
                 excluded.append(observation.metric)
                 continue
-            age_ms = decision_time_ms - observation.available_at_ms
-            if age_ms > self._config.max_age_ms:
+            publication_age_ms = decision_time_ms - observation.available_at_ms
+            observation_age_ms = decision_time_ms - observation.observed_at_ms
+            if (
+                publication_age_ms > self._config.max_age_ms
+                or observation_age_ms > self._config.max_observation_age_ms
+            ):
                 excluded.append(observation.metric)
                 continue
             usable.append(observation)
@@ -92,9 +112,9 @@ class OnChainRegimeEngine:
             observation.percentile <= self._config.low_percentile for observation in usable
         )
 
-        if high_count >= self._config.minimum_metrics:
+        if high_count >= self._config.consensus_metrics:
             regime = OnChainRegime.OVERHEATED
-        elif low_count >= self._config.minimum_metrics:
+        elif low_count >= self._config.consensus_metrics:
             regime = OnChainRegime.UNDERHEATED
         else:
             regime = OnChainRegime.NEUTRAL

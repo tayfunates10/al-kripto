@@ -9,6 +9,7 @@ from al_kripto.onchain import (
     MetricName,
     MetricObservation,
     OnChainRegime,
+    OnChainRegimeAssessment,
     OnChainRegimeConfig,
     OnChainRegimeEngine,
     OnChainSnapshot,
@@ -77,7 +78,14 @@ class OnChainModelTests(unittest.TestCase):
 
 class OnChainRegimeTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.engine = OnChainRegimeEngine(OnChainRegimeConfig(max_age_ms=10_000, minimum_metrics=3))
+        self.engine = OnChainRegimeEngine(
+            OnChainRegimeConfig(
+                max_age_ms=10_000,
+                max_observation_age_ms=10_000,
+                minimum_metrics=3,
+                consensus_metrics=3,
+            )
+        )
 
     def test_classifies_high_consensus_as_overheated(self) -> None:
         result = self.engine.classify(
@@ -119,7 +127,7 @@ class OnChainRegimeTests(unittest.TestCase):
             (MetricName.PUELL_MULTIPLE, MetricName.NVT),
         )
 
-    def test_stale_observations_are_excluded(self) -> None:
+    def test_stale_publication_is_excluded(self) -> None:
         snapshot = btc_snapshot(("0.90", "0.90", "0.90", "0.90"))
 
         result = self.engine.classify(snapshot, decision_time_ms=20_001)
@@ -127,11 +135,88 @@ class OnChainRegimeTests(unittest.TestCase):
         self.assertEqual(result.regime, OnChainRegime.UNKNOWN)
         self.assertEqual(result.usable_metrics, ())
 
+    def test_recent_publication_cannot_hide_stale_observation(self) -> None:
+        now = 100 * 86_400_000
+        stale_observed = now - (90 * 86_400_000)
+        recent_available = now - 1_000
+        snapshot = OnChainSnapshot(
+            asset="BTC",
+            observations=(
+                observation(
+                    MetricName.MVRV,
+                    "0.95",
+                    observed_at_ms=stale_observed,
+                    available_at_ms=recent_available,
+                ),
+                observation(
+                    MetricName.SOPR,
+                    "0.95",
+                    observed_at_ms=now - 2_000,
+                    available_at_ms=now - 1_000,
+                ),
+                observation(
+                    MetricName.PUELL_MULTIPLE,
+                    "0.95",
+                    observed_at_ms=now - 2_000,
+                    available_at_ms=now - 1_000,
+                ),
+            ),
+        )
+        engine = OnChainRegimeEngine(
+            OnChainRegimeConfig(
+                minimum_metrics=3,
+                consensus_metrics=3,
+                max_age_ms=10_000,
+                max_observation_age_ms=86_400_000,
+            )
+        )
+
+        result = engine.classify(snapshot, decision_time_ms=now)
+
+        self.assertEqual(result.regime, OnChainRegime.UNKNOWN)
+        self.assertEqual(result.usable_metrics, (MetricName.SOPR, MetricName.PUELL_MULTIPLE))
+        self.assertEqual(result.excluded_metrics, (MetricName.MVRV,))
+
+    def test_consensus_threshold_is_independent_from_minimum_data_threshold(self) -> None:
+        engine = OnChainRegimeEngine(
+            OnChainRegimeConfig(
+                minimum_metrics=2,
+                consensus_metrics=3,
+                max_age_ms=10_000,
+                max_observation_age_ms=10_000,
+            )
+        )
+
+        result = engine.classify(
+            btc_snapshot(("0.95", "0.95", "0.50", "0.50")),
+            decision_time_ms=2_500,
+        )
+
+        self.assertEqual(result.regime, OnChainRegime.NEUTRAL)
+
     def test_invalid_threshold_order_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             OnChainRegimeConfig(
                 low_percentile=Decimal("0.80"),
                 high_percentile=Decimal("0.20"),
+            )
+
+    def test_assessment_rejects_overlapping_metric_groups(self) -> None:
+        with self.assertRaises(ValueError):
+            OnChainRegimeAssessment(
+                regime=OnChainRegime.UNKNOWN,
+                decision_time_ms=1,
+                usable_metrics=(MetricName.MVRV,),
+                excluded_metrics=(MetricName.MVRV,),
+            )
+
+    def test_assessment_rejects_negative_decision_time(self) -> None:
+        with self.assertRaises(ValueError):
+            OnChainRegimeAssessment(
+                regime=OnChainRegime.UNKNOWN,
+                decision_time_ms=-1,
+                usable_metrics=(),
+                excluded_metrics=(),
             )
 
 

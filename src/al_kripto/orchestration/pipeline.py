@@ -7,7 +7,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from al_kripto.backtest import BacktestEngine, BacktestResult, BacktestStrategy
-from al_kripto.execution import ExecutionOrder, Side as ExecutionSide, TestExecutionEngine
+from al_kripto.execution import ExecutionOrder, TestExecutionEngine
+from al_kripto.execution import Side as ExecutionSide
 from al_kripto.market_data import Candle, MarketDataSource
 from al_kripto.ml_research import (
     ChronologicalSplit,
@@ -177,7 +178,10 @@ class PaperValidationPipeline:
         )
 
         test_order: ExecutionOrder | None = None
-        if risk_result.decision is not RiskDecision.REJECT and monitoring_result.status is HealthStatus.HEALTHY:
+        if (
+            risk_result.decision is not RiskDecision.REJECT
+            and monitoring_result.status is HealthStatus.HEALTHY
+        ):
             latest_price = candles[-1].close
             quantity = risk_result.approved_notional / latest_price
             test_order = self._execution.submit(

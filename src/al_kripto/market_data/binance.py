@@ -16,6 +16,7 @@ from .models import (
     OrderBookLevel,
     OrderBookSnapshot,
     Trade,
+    _validate_symbol,
 )
 
 BINANCE_PUBLIC_DATA_URL = "https://data-api.binance.vision"
@@ -100,7 +101,9 @@ class BinanceSpotMarketData:
         limit: int = 500,
         start_time_ms: int | None = None,
         end_time_ms: int | None = None,
+        only_closed: bool = True,
     ) -> list[Candle]:
+        _validate_symbol(symbol)
         if interval not in _SUPPORTED_INTERVALS:
             raise ValueError(f"Unsupported Binance interval: {interval!r}")
         _validate_limit(limit, maximum=1000)
@@ -121,7 +124,18 @@ class BinanceSpotMarketData:
         )
         rows = _as_list(payload, "klines")
         candles = [_parse_candle(symbol, row) for row in rows]
-        _ensure_chronological(candles, key=lambda item: item.open_time_ms, label="candles")
+        _ensure_chronological(
+            candles,
+            key=lambda item: item.open_time_ms,
+            label="candles",
+            strict=True,
+        )
+
+        if only_closed:
+            as_of_ms = self._clock_ms()
+            if as_of_ms < 0:
+                raise MarketDataPayloadError("market-data clock must be non-negative.")
+            candles = [candle for candle in candles if candle.close_time_ms <= as_of_ms]
         return candles
 
     def fetch_trades(
@@ -131,6 +145,7 @@ class BinanceSpotMarketData:
         limit: int = 500,
         start_time_ms: int | None = None,
     ) -> list[Trade]:
+        _validate_symbol(symbol)
         _validate_limit(limit, maximum=1000)
         _validate_optional_timestamp(start_time_ms, "start_time_ms")
         payload = self._get(
@@ -139,10 +154,16 @@ class BinanceSpotMarketData:
         )
         rows = _as_list(payload, "aggregate trades")
         trades = [_parse_trade(symbol, row) for row in rows]
-        _ensure_chronological(trades, key=lambda item: item.timestamp_ms, label="trades")
+        _ensure_chronological(
+            trades,
+            key=lambda item: item.timestamp_ms,
+            label="trades",
+            strict=False,
+        )
         return trades
 
     def fetch_order_book(self, symbol: str, *, limit: int = 100) -> OrderBookSnapshot:
+        _validate_symbol(symbol)
         _validate_limit(limit, maximum=5000)
         payload = _as_mapping(
             self._get("/api/v3/depth", {"symbol": symbol, "limit": limit}),
@@ -268,6 +289,12 @@ def _ensure_chronological[T](
     *,
     key: Callable[[T], int],
     label: str,
+    strict: bool,
 ) -> None:
-    if any(key(left) > key(right) for left, right in pairwise(items)):
-        raise MarketDataPayloadError(f"{label} must be chronological.")
+    if strict:
+        invalid = any(key(left) >= key(right) for left, right in pairwise(items))
+    else:
+        invalid = any(key(left) > key(right) for left, right in pairwise(items))
+    if invalid:
+        qualifier = "strictly chronological" if strict else "chronological"
+        raise MarketDataPayloadError(f"{label} must be {qualifier}.")

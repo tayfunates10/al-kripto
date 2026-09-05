@@ -23,9 +23,23 @@ class ChronologicalSplitTests(unittest.TestCase):
             purge_size=2,
         )
 
-        self.assertEqual(split.train, (0, 1, 2, 3, 4, 5))
-        self.assertEqual(split.validation, (8, 9, 10, 11))
-        self.assertEqual(split.test, (14, 15, 16, 17))
+        self.assertEqual(split.train, (2, 3, 4, 5, 6, 7))
+        self.assertEqual(split.validation, (10, 11, 12, 13))
+        self.assertEqual(split.test, (16, 17, 18, 19))
+
+    def test_large_input_keeps_test_set_at_newest_edge(self) -> None:
+        split = chronological_split(
+            tuple(range(1000)),
+            train_size=100,
+            validation_size=50,
+            test_size=50,
+            purge_size=5,
+        )
+
+        self.assertEqual(split.train[0], 790)
+        self.assertEqual(split.validation[0], 895)
+        self.assertEqual(split.test[0], 950)
+        self.assertEqual(split.test[-1], 999)
 
     def test_rejects_insufficient_samples(self) -> None:
         with self.assertRaises(ResearchValidationError):

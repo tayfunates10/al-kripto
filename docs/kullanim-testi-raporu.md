@@ -114,16 +114,33 @@ yeşil; aşağıdakiler o testlerin kapsamadığı, uçtan uca kullanımda ortay
 `False` sabitli ve `FrozenInstanceError` ile korunuyor; kill-switch açıkken izleme `paused`
 dönüyor ve **hiç test emri üretilmiyor** (fail-closed).
 
-| Kod | Bulgu | Ölçüm |
-|---|---|---|
-| O-01 | **Lot/step-size disiplini yürütme yolunda uygulanmıyor.** `pipeline.py:186` emir miktarını `approved_notional / latest_price` ile hesaplıyor; B-18'de backtest'e eklenen `quantity_step` yuvarlaması bu yola uygulanmıyor. | `quantity_step=0.001` iken üretilen emir miktarı **27 ondalık basamak**: `6.269592476489028213166144201` |
-| O-02 | **Sağlayıcı plandan az mum döndürürse iç katman hatası sızıyor.** `PaperValidationPlan` yalnızca `candle_limit`'i doğruluyor, gerçekte dönen mum sayısını kimse doğrulamıyor. Hata, backtest/SMC/on-chain/risk/izleme çalıştıktan *sonra* ML katmanından geliyor. | 60 planlanıp 40 mum dönünce `PipelineValidationError` yerine `ResearchValidationError: not enough samples: need at least 54, received 40` |
-| O-03 | **Varlık–sembol eşleşmesi ön ek kontrolü.** `pipeline.py:146` `plan.symbol.startswith(asset)` kullanıyor; taban varlık eşleşmesi değil. | `asset="BT"` + `symbol="BTCUSDT"` kabul ediliyor |
-| O-04 | **`ml_split` ile `ml_metrics` birbirine bağlı değil.** Bölme mumlardan hesaplanıyor, metrikler ise çağıranın verdiği `prediction_records`'tan. İkisi arasında hiçbir bağ yok; döngüdeki OOS doğrulaması bu hâliyle dekoratif. | `train=30 val=10 test=10` üretiliyor ama metrikler tamamen dışarıdan gelen 5 kayıttan |
+| Kod | Bulgu | Tespit anındaki ölçüm | Durum |
+|---|---|---|---|
+| O-01 | **Lot/step-size disiplini yürütme yolunda uygulanmıyordu.** Emir miktarı `approved_notional / latest_price` ile hesaplanıyor, B-18'de backtest'e eklenen `quantity_step` yuvarlaması bu yola uygulanmıyordu. | `quantity_step=0.001` iken emir miktarı **27 ondalık basamak**: `6.269592476489028213166144201` | ✅ Kapandı |
+| O-02 | **Sağlayıcı plandan az mum döndürürse iç katman hatası sızıyordu.** Plan yalnızca `candle_limit`'i doğruluyor, gerçekte dönen mum sayısını kimse doğrulamıyordu. Hata, backtest/SMC/on-chain/risk/izleme çalıştıktan *sonra* ML katmanından geliyordu. | 60 planlanıp 40 mum dönünce `ResearchValidationError: not enough samples: need at least 54, received 40` | ✅ Kapandı |
+| O-03 | **Varlık–sembol eşleşmesi ön ek kontrolüydü.** `plan.symbol.startswith(asset)` kullanılıyordu; taban varlık eşitliği değil. | `asset="BT"` + `symbol="BTCUSDT"` kabul ediliyordu | ✅ Kapandı |
+| O-04 | **`ml_split` ile `ml_metrics` birbirine bağlı değildi.** Bölme mumlardan, metrikler çağıranın verdiği `prediction_records`'tan hesaplanıyor, aralarında bağ yoktu; döngüdeki OOS doğrulaması dekoratifti. | `train=30 val=10 test=10` üretilirken metrikler tamamen dışarıdan gelen kayıtlardan | ✅ Kapandı |
 
-O-01 en dikkat çekici olanı: B-18 ile getirilen lot disiplini backtest yolunda uygulanıyor,
-fakat gerçek emir nesnesini üreten yolda uygulanmıyor. Lot adımı için tek bir doğruluk
-kaynağı bulunmadığından, aynı sınıftan bir kusur katman sınırında yeniden ortaya çıkıyor.
+O-01, O-03 ve O-04 bağımsız olarak Codex inceleme botu tarafından da aynı satırlarda
+raporlandı (P2, P2, P1).
+
+#### Uygulanan düzeltmeler
+
+`PaperValidationPlan` iki zorunlu alan kazandı: `base_asset` ve `quantity_step`. Böylece
+lot adımı ve taban varlık, tahmin edilen değil **beyan edilen** girdiler oldu.
+
+| Kod | Düzeltme |
+|---|---|
+| O-01 | Emir miktarı `quantity_step`'e aşağı yuvarlanıyor; sonuç sıfırsa `PipelineValidationError` ile fail-closed. Backtest'in `_round_down_to_step` davranışıyla aynı. |
+| O-02 | Mumlar çekildikten hemen sonra `len(candles) < plan.required_samples` kontrolü; hata artık `PipelineValidationError` ve pahalı adımlar çalışmadan önce. |
+| O-03 | `inputs.onchain_snapshot.asset != plan.base_asset` tam eşitlik kontrolü; plan ayrıca `symbol.startswith(base_asset)` ile kendi içinde tutarlı olmaya zorlanıyor. |
+| O-04 | Her `PredictionRecord.timestamp_ms`, ayrılan test penceresi `[test[0].open_time_ms, test[-1].close_time_ms]` içinde olmak zorunda; dışarıdaki kayıtlar reddediliyor. |
+
+Doğrulama: `tests/test_orchestration.py`'ye 5 regresyon testi eklendi. Dördünün her biri,
+ilgili düzeltme geri alındığında kırmızıya döndüğü mutasyon kontrolüyle sınandı. Kullanım
+testi senaryoları da düzeltme sonrası yeniden çalıştırıldı — emir miktarı `6.269` (3 basamak),
+az mum senaryosu `PipelineValidationError: market data returned 40 candles; the cycle needs
+at least 54`, `asset="BT"` reddediliyor.
 
 ---
 

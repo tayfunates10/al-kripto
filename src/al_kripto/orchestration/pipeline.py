@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 
 from al_kripto.backtest import BacktestEngine, BacktestResult, BacktestStrategy
 from al_kripto.execution import ExecutionOrder, TestExecutionEngine
@@ -33,6 +33,8 @@ from al_kripto.risk import PositionRequest, RiskAssessment, RiskContext, RiskDec
 from al_kripto.smc import SMCAnalysis, SMCEngine
 
 _SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{5,20}$")
+_ASSET_PATTERN = re.compile(r"^[A-Z0-9]{2,12}$")
+_ZERO = Decimal("0")
 
 
 class PipelineValidationError(ValueError):
@@ -44,6 +46,7 @@ class PaperValidationPlan:
     """Static plan for one offline/paper validation cycle."""
 
     symbol: str
+    base_asset: str
     interval: str
     candle_limit: int
     ml_train_size: int
@@ -51,10 +54,15 @@ class PaperValidationPlan:
     ml_test_size: int
     ml_purge_size: int
     client_order_id: str
+    quantity_step: Decimal
 
     def __post_init__(self) -> None:
         if not _SYMBOL_PATTERN.fullmatch(self.symbol):
             raise PipelineValidationError(f"invalid symbol: {self.symbol!r}")
+        if not _ASSET_PATTERN.fullmatch(self.base_asset):
+            raise PipelineValidationError(f"invalid base asset: {self.base_asset!r}")
+        if not self.symbol.startswith(self.base_asset):
+            raise PipelineValidationError("base_asset must be the leading part of the symbol.")
         if not self.interval.strip():
             raise PipelineValidationError("interval must not be empty.")
         if self.candle_limit <= 0:
@@ -64,13 +72,21 @@ class PaperValidationPlan:
             raise PipelineValidationError("ML split sizes must be > 0.")
         if self.ml_purge_size < 0:
             raise PipelineValidationError("ml_purge_size must be >= 0.")
-        required = sum(sizes) + (2 * self.ml_purge_size)
-        if self.candle_limit < required:
+        if self.candle_limit < self.required_samples:
             raise PipelineValidationError(
                 "candle_limit must cover train, validation, test and purge samples."
             )
         if not self.client_order_id.strip():
             raise PipelineValidationError("client_order_id must not be empty.")
+        if not self.quantity_step.is_finite() or self.quantity_step <= _ZERO:
+            raise PipelineValidationError("quantity_step must be finite and > 0.")
+
+    @property
+    def required_samples(self) -> int:
+        """Smallest candle count that can fill every split window plus both purge gaps."""
+
+        sizes = self.ml_train_size + self.ml_validation_size + self.ml_test_size
+        return sizes + (2 * self.ml_purge_size)
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,8 +159,11 @@ class PaperValidationPipeline:
         """Run a full offline/paper cycle; the only order object is in-memory test execution."""
         if inputs.position_request.symbol != plan.symbol:
             raise PipelineValidationError("position request symbol must match the cycle symbol.")
-        if not plan.symbol.startswith(inputs.onchain_snapshot.asset):
-            raise PipelineValidationError("on-chain asset must match the cycle symbol.")
+        if inputs.onchain_snapshot.asset != plan.base_asset:
+            raise PipelineValidationError(
+                "on-chain asset must equal the cycle base asset; "
+                f"got {inputs.onchain_snapshot.asset!r}, expected {plan.base_asset!r}."
+            )
 
         candles = tuple(
             self._market_data.fetch_candles(
@@ -153,6 +172,11 @@ class PaperValidationPipeline:
                 limit=plan.candle_limit,
             )
         )
+        if len(candles) < plan.required_samples:
+            raise PipelineValidationError(
+                f"market data returned {len(candles)} candles; "
+                f"the cycle needs at least {plan.required_samples}."
+            )
         backtest_result = self._backtest.run(candles, self._strategy)
         smc_result = self._smc.analyze(candles)
         onchain_result = self._onchain.classify(
@@ -171,6 +195,7 @@ class PaperValidationPipeline:
             test_size=plan.ml_test_size,
             purge_size=plan.ml_purge_size,
         )
+        _require_records_in_test_window(inputs.prediction_records, ml_split.test)
         ml_metrics = tuple(binary_classification_metrics(inputs.prediction_records).items())
         readiness = assess_production_readiness(
             inputs.readiness_evidence,
@@ -183,7 +208,12 @@ class PaperValidationPipeline:
             and monitoring_result.status is HealthStatus.HEALTHY
         ):
             latest_price = candles[-1].close
-            quantity = risk_result.approved_notional / latest_price
+            raw_quantity = risk_result.approved_notional / latest_price
+            quantity = _round_down_to_step(raw_quantity, plan.quantity_step)
+            if quantity <= _ZERO:
+                raise PipelineValidationError(
+                    "approved notional is below one quantity step; no valid order can be placed."
+                )
             test_order = self._execution.submit(
                 client_order_id=plan.client_order_id,
                 symbol=plan.symbol,
@@ -202,4 +232,32 @@ class PaperValidationPipeline:
             ml_metrics=ml_metrics,
             readiness=readiness,
             test_order=test_order,
+        )
+
+
+def _round_down_to_step(quantity: Decimal, step: Decimal) -> Decimal:
+    units = (quantity / step).to_integral_value(rounding=ROUND_DOWN)
+    return units * step
+
+
+def _require_records_in_test_window(
+    records: tuple[PredictionRecord, ...],
+    test_window: tuple[Candle, ...],
+) -> None:
+    """Reject predictions that do not belong to the held-out window they are reported with."""
+
+    if not test_window:
+        raise PipelineValidationError("the held-out test window must not be empty.")
+
+    window_start = test_window[0].open_time_ms
+    window_end = test_window[-1].close_time_ms
+    outside = [
+        record.timestamp_ms
+        for record in records
+        if not window_start <= record.timestamp_ms <= window_end
+    ]
+    if outside:
+        raise PipelineValidationError(
+            f"prediction records must fall inside the held-out test window "
+            f"[{window_start}, {window_end}]; got {sorted(outside)}."
         )

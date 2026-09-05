@@ -198,8 +198,8 @@ def _inputs() -> PaperValidationInputs:
         ),
         monitoring_thresholds=_monitoring_thresholds(),
         prediction_records=(
-            PredictionRecord(1, True, True, Decimal("0.9")),
-            PredictionRecord(2, False, False, Decimal("0.1")),
+            PredictionRecord(300_000, True, True, Decimal("0.9")),
+            PredictionRecord(300_001, False, False, Decimal("0.1")),
         ),
         readiness_evidence=_readiness_evidence(),
         readiness_as_of_ms=2_500,
@@ -209,6 +209,7 @@ def _inputs() -> PaperValidationInputs:
 def _plan() -> PaperValidationPlan:
     return PaperValidationPlan(
         symbol="BTCUSDT",
+        base_asset="BTC",
         interval="1m",
         candle_limit=6,
         ml_train_size=2,
@@ -216,6 +217,7 @@ def _plan() -> PaperValidationPlan:
         ml_test_size=1,
         ml_purge_size=1,
         client_order_id="paper-cycle-1",
+        quantity_step=Decimal("0.001"),
     )
 
 
@@ -285,6 +287,59 @@ class PaperValidationPipelineTests(unittest.TestCase):
                     equity=Decimal("999"),
                 ),
             )
+
+    def test_test_order_quantity_is_rounded_to_the_plan_quantity_step(self) -> None:
+        source = _FakeMarketData(_candles())
+
+        cycle = _pipeline(source).run(_plan(), _inputs())
+
+        assert cycle.test_order is not None
+        step = _plan().quantity_step
+        self.assertEqual(cycle.test_order.quantity % step, Decimal("0"))
+        self.assertGreater(cycle.test_order.quantity, Decimal("0"))
+
+    def test_notional_below_one_quantity_step_is_rejected(self) -> None:
+        source = _FakeMarketData(_candles())
+        coarse = replace(_plan(), quantity_step=Decimal("1000"))
+
+        with self.assertRaises(PipelineValidationError):
+            _pipeline(source).run(coarse, _inputs())
+
+    def test_onchain_asset_prefix_does_not_pass_as_base_asset(self) -> None:
+        source = _FakeMarketData(_candles())
+        inputs = _inputs()
+        # Puell Multiple is BTC-only, so build the mismatched snapshot without it.
+        prefixed = replace(
+            inputs,
+            onchain_snapshot=OnChainSnapshot(
+                asset="BT",
+                observations=tuple(
+                    observation
+                    for observation in inputs.onchain_snapshot.observations
+                    if observation.metric is not MetricName.PUELL_MULTIPLE
+                ),
+            ),
+        )
+
+        with self.assertRaises(PipelineValidationError):
+            _pipeline(source).run(_plan(), prefixed)
+
+    def test_short_market_data_response_raises_pipeline_error(self) -> None:
+        source = _FakeMarketData(_candles()[:4])
+
+        with self.assertRaises(PipelineValidationError):
+            _pipeline(source).run(_plan(), _inputs())
+
+    def test_predictions_outside_the_test_window_are_rejected(self) -> None:
+        source = _FakeMarketData(_candles())
+        inputs = _inputs()
+        drifted = replace(
+            inputs,
+            prediction_records=(PredictionRecord(999_999_999, True, True, Decimal("0.9")),),
+        )
+
+        with self.assertRaises(PipelineValidationError):
+            _pipeline(source).run(_plan(), drifted)
 
 
 if __name__ == "__main__":

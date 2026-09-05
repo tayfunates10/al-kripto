@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 
 from .models import ExecutionOrder, ExecutionStatus, Fill, Side
@@ -51,23 +52,33 @@ class TestExecutionEngine:
         order = self._require_order(client_order_id)
         if order.status in {ExecutionStatus.CANCELED, ExecutionStatus.FILLED}:
             raise ValueError("terminal order cannot receive fills")
-        if quantity > order.remaining_quantity:
+
+        fill = Fill(quantity=quantity, price=price)
+        if fill.quantity > order.remaining_quantity:
             raise ValueError("fill exceeds remaining quantity")
 
-        order.fills = (*order.fills, Fill(quantity=quantity, price=price))
-        order.status = (
-            ExecutionStatus.FILLED
-            if order.remaining_quantity == Decimal("0")
-            else ExecutionStatus.PARTIALLY_FILLED
+        updated = replace(order, fills=(*order.fills, fill))
+        updated = replace(
+            updated,
+            status=(
+                ExecutionStatus.FILLED
+                if updated.remaining_quantity == Decimal("0")
+                else ExecutionStatus.PARTIALLY_FILLED
+            ),
         )
-        return order
+        self._orders[client_order_id] = updated
+        return updated
 
     def cancel(self, client_order_id: str) -> ExecutionOrder:
         order = self._require_order(client_order_id)
         if order.status is ExecutionStatus.FILLED:
             raise ValueError("filled order cannot be canceled")
-        order.status = ExecutionStatus.CANCELED
-        return order
+        if order.status is ExecutionStatus.CANCELED:
+            return order
+
+        updated = replace(order, status=ExecutionStatus.CANCELED)
+        self._orders[client_order_id] = updated
+        return updated
 
     def get(self, client_order_id: str) -> ExecutionOrder:
         return self._require_order(client_order_id)

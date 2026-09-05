@@ -10,6 +10,7 @@ from enum import StrEnum
 
 LIVE_ACKNOWLEDGEMENT = "I_UNDERSTAND_LIVE_TRADING_RISK"
 _SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]{5,20}$")
+_SUPPORTED_EXCHANGES = frozenset({"binance"})
 
 
 class ConfigurationError(ValueError):
@@ -48,6 +49,11 @@ class Settings:
     def __post_init__(self) -> None:
         if not self.exchange or not self.exchange.isascii():
             raise ConfigurationError("Exchange must be a non-empty ASCII identifier.")
+        if self.exchange not in _SUPPORTED_EXCHANGES:
+            supported = ", ".join(sorted(_SUPPORTED_EXCHANGES))
+            raise ConfigurationError(
+                f"Unsupported exchange: {self.exchange!r}. Supported exchanges: {supported}."
+            )
         if not self.symbols:
             raise ConfigurationError("At least one symbol is required.")
         if len(set(self.symbols)) != len(self.symbols):
